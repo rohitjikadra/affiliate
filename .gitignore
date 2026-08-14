@@ -1,0 +1,14 @@
+node_modules
+dist
+.next
+out
+coverage
+.env
+.env.local
+*.log
+.DS_Store
+backend/src/generated
+backend/.agents
+backend/.claude
+backend/.windsurf
+backend/skills-lock.json
