@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { BuyNowButton } from "@/components/product/BuyNowButton";
+import { AffiliateNotice } from "@/components/legal/AffiliateNotice";
 import { getProduct } from "@/lib/api";
 import { formatMoney } from "@/lib/money";
 import { ApiError } from "@/types/product";
@@ -80,6 +81,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
 
             <div className="mt-8">
               <BuyNowButton slug={product.slug} available={product.available} />
+              <AffiliateNotice />
             </div>
           </div>
         </div>

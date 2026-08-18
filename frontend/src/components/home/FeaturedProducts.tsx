@@ -1,4 +1,5 @@
 import type { Product } from "@/types/product";
+import Link from "next/link";
 import { ProductGrid } from "@/components/product/ProductGrid";
 
 type FeaturedProductsProps = {
@@ -14,7 +15,10 @@ export function FeaturedProducts({ products }: FeaturedProductsProps) {
           Featured products
         </h2>
         <p className="mt-2 text-sm text-slate-500">
-          Independent picks with Amazon affiliate links. We may earn a commission if you buy.
+          Independent picks with retailer affiliate links.{" "}
+          <Link href="/affiliate-disclosure" className="font-medium text-teal-700 hover:text-teal-800">
+            Affiliate disclosure
+          </Link>
         </p>
       </div>
       <ProductGrid

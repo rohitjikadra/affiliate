@@ -1,0 +1,83 @@
+import type { Metadata } from "next";
+import Link from "next/link";
+
+export const metadata: Metadata = {
+  title: "Affiliate disclosure — AffiliateHub",
+  description:
+    "How AffiliateHub participates in the Amazon Associates Programme and discloses affiliate relationships.",
+};
+
+export default function AffiliateDisclosurePage() {
+  return (
+    <article className="mx-auto w-full max-w-3xl px-4 py-10 sm:px-6 sm:py-14">
+      <p className="text-sm text-slate-500">
+        <Link href="/" className="hover:text-slate-800">
+          Home
+        </Link>
+        <span className="px-2">/</span>
+        <span>Affiliate disclosure</span>
+      </p>
+      <p className="mt-6 text-sm font-medium uppercase tracking-wide text-teal-700">Transparency</p>
+      <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">Affiliate disclosure</h1>
+      <p className="mt-4 text-base leading-7 text-slate-600">
+        This page explains how AffiliateHub may earn money when you click a product link and later buy
+        something. Please read it before you treat any page as a shopping list.
+      </p>
+
+      <div className="mt-8 space-y-8 text-base leading-7 text-slate-600">
+        <section className="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-950">
+          <p>
+            <strong>Amazon Associates:</strong> AffiliateHub is a participant in the Amazon Associates
+            Programme, an affiliate advertising programme designed to provide a means for sites to earn
+            advertising fees by advertising and linking to Amazon.in.{" "}
+            <strong>As an Amazon Associate we earn from qualifying purchases.</strong>
+          </p>
+        </section>
+
+        <section>
+          <h2 className="text-xl font-semibold text-slate-900">What this website is</h2>
+          <p className="mt-3">
+            AffiliateHub is a product discovery catalog. We do not sell inventory from this site, hold
+            stock, or process checkout. When you click <strong>Buy Now</strong>, you leave AffiliateHub
+            and go to a retailer such as Amazon.
+          </p>
+        </section>
+
+        <section>
+          <h2 className="text-xl font-semibold text-slate-900">How we may earn a commission</h2>
+          <p className="mt-3">
+            Some of our links are affiliate links. If you click one and later buy a product, the retailer
+            may pay us a commission. This does not change the price you pay. We may also use tracking
+            cookies set by the retailer after you click.
+          </p>
+        </section>
+
+        <section>
+          <h2 className="text-xl font-semibold text-slate-900">How we choose products</h2>
+          <p className="mt-3">
+            Listings are based on publicly available information, typical buyer needs, and editorial
+            judgment. Unless an article clearly says otherwise, we do not claim that every product has
+            been personally lab-tested or used long-term by AffiliateHub. A commission is never the only
+            reason a product type appears in the catalog.
+          </p>
+        </section>
+
+        <section>
+          <h2 className="text-xl font-semibold text-slate-900">Prices</h2>
+          <p className="mt-3">
+            Prices shown on AffiliateHub are snapshots entered in our catalog. They may be out of date.
+            The price you pay is the price on the retailer&apos;s checkout page at the time of purchase.
+          </p>
+        </section>
+
+        <section>
+          <h2 className="text-xl font-semibold text-slate-900">Other programmes</h2>
+          <p className="mt-3">
+            If we add another affiliate network (for example Flipkart), we will say so on this page and
+            near the relevant links.
+          </p>
+        </section>
+      </div>
+    </article>
+  );
+}

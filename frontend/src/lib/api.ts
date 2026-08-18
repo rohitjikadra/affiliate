@@ -216,4 +216,12 @@ export async function getClickStats(): Promise<ClickStats> {
   return request<ClickStats>("/api/admin/stats/clicks");
 }
 
+export type AdminConfig = {
+  amazonAssociateTag: string | null;
+};
+
+export async function getAdminConfig(): Promise<AdminConfig> {
+  return request<AdminConfig>("/api/admin/config");
+}
+
 export { API_URL };

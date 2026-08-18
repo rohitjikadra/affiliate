@@ -11,12 +11,14 @@ import {
   type ProductFormValues,
 } from "@/lib/product-form";
 import { createProduct, updateProduct } from "@/lib/api";
+import { amazonTagWarning } from "@/lib/amazon";
 import { redirectToLogin } from "@/lib/admin";
 
 type ProductFormProps = {
   mode: "create" | "edit";
   categories: ProductCategory[];
   product?: Product;
+  amazonAssociateTag?: string | null;
 };
 
 const emptyValues: ProductFormValues = {
@@ -55,7 +57,12 @@ function valuesFromProduct(product: Product): ProductFormValues {
   };
 }
 
-export function ProductForm({ mode, categories, product }: ProductFormProps) {
+export function ProductForm({
+  mode,
+  categories,
+  product,
+  amazonAssociateTag = null,
+}: ProductFormProps) {
   const router = useRouter();
   const [values, setValues] = useState<ProductFormValues>(
     product ? valuesFromProduct(product) : emptyValues,
@@ -72,6 +79,10 @@ export function ProductForm({ mode, categories, product }: ProductFormProps) {
   }, [values.title, slugTouched]);
 
   const imagePreview = useMemo(() => values.imageUrl.trim(), [values.imageUrl]);
+  const tagWarning = useMemo(
+    () => amazonTagWarning(values.affiliateUrl, values.source, amazonAssociateTag),
+    [values.affiliateUrl, values.source, amazonAssociateTag],
+  );
 
   function updateField<K extends keyof ProductFormValues>(key: K, value: ProductFormValues[K]) {
     setValues((current) => ({ ...current, [key]: value }));
@@ -218,12 +229,17 @@ export function ProductForm({ mode, categories, product }: ProductFormProps) {
             placeholder="https://example.com/product.jpg"
           />
         </Field>
-        <Field label="Affiliate URL" error={errors.affiliateUrl}>
+        <Field
+          label="Affiliate URL"
+          error={errors.affiliateUrl}
+          hint="Paste an Amazon Associates link that includes your tracking tag."
+          warning={tagWarning}
+        >
           <input
             value={values.affiliateUrl}
             onChange={(event) => updateField("affiliateUrl", event.target.value)}
             className={inputClass}
-            placeholder="https://"
+            placeholder="https://www.amazon.in/dp/...?tag=yourid-21"
           />
         </Field>
         <Field label="Source ID" error={errors.sourceId}>
@@ -304,11 +320,15 @@ const inputClass =
 function Field({
   label,
   error,
+  warning,
+  hint,
   required,
   children,
 }: {
   label: string;
   error?: string;
+  warning?: string;
+  hint?: string;
   required?: boolean;
   children: React.ReactNode;
 }) {
@@ -317,6 +337,8 @@ function Field({
       {label}
       {required ? <span className="text-red-600"> *</span> : null}
       {children}
+      {hint ? <span className="mt-1 block text-xs font-normal text-slate-500">{hint}</span> : null}
+      {warning ? <span className="mt-1 block text-xs font-normal text-amber-700">{warning}</span> : null}
       {error ? <span className="mt-1 block text-xs font-normal text-red-600">{error}</span> : null}
     </label>
   );

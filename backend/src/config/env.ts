@@ -44,4 +44,5 @@ export const env = {
   adminPassword: readString("ADMIN_PASSWORD", nodeEnv === "production" ? undefined : "changeme"),
   sessionSecret: readString("SESSION_SECRET", nodeEnv === "production" ? undefined : "dev-only-session-secret"),
   sessionTtlMs: 7 * 24 * 60 * 60 * 1000,
+  amazonAssociateTag: (process.env.AMAZON_ASSOCIATE_TAG ?? "").trim() || null,
 } as const;
