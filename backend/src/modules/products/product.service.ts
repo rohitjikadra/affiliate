@@ -1,7 +1,12 @@
 import { prisma } from "../../config/prisma.js";
 import { AppError } from "../../lib/errors.js";
 import { slugify } from "../../lib/slug.js";
-import type { CreateProductInput, ProductStatusInput, UpdateProductInput } from "./product.schemas.js";
+import type {
+  CreateProductInput,
+  ListProductsQuery,
+  ProductStatusInput,
+  UpdateProductInput,
+} from "./product.schemas.js";
 import { serializeProduct } from "./product.serializer.js";
 
 const productInclude = {
@@ -46,13 +51,26 @@ async function assertCategoryExists(categoryId?: string | null): Promise<void> {
   }
 }
 
-export async function listProducts() {
+export async function listProducts(query: ListProductsQuery = {}) {
   const products = await prisma.product.findMany({
+    where: {
+      ...(query.includeInactive ? {} : { isActive: true }),
+      ...(query.featured ? { featured: true } : {}),
+      ...(query.category ? { category: { slug: query.category } } : {}),
+      ...(query.q
+        ? {
+            OR: [
+              { title: { contains: query.q, mode: "insensitive" } },
+              { description: { contains: query.q, mode: "insensitive" } },
+            ],
+          }
+        : {}),
+    },
     include: productInclude,
-    orderBy: { createdAt: "desc" },
+    orderBy: [{ featured: "desc" }, { createdAt: "desc" }],
   });
 
-  return products.map(serializeProduct);
+  return products.map((product) => serializeProduct(product, { includeAffiliateUrl: false }));
 }
 
 export async function getProductById(id: string) {

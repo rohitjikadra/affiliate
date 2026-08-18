@@ -105,7 +105,44 @@ export const productGoSchema = z.object({
   referrer: z.preprocess(blankToUndefined, z.string().trim().max(2000).optional()),
 });
 
+const firstQueryValue = (value: unknown) => {
+  if (Array.isArray(value)) {
+    return value[0];
+  }
+
+  return value;
+};
+
+const queryBoolean = z.preprocess((value) => {
+  const raw = firstQueryValue(value);
+
+  if (raw === undefined || raw === "") {
+    return undefined;
+  }
+
+  if (raw === "true" || raw === true) {
+    return true;
+  }
+
+  if (raw === "false" || raw === false) {
+    return false;
+  }
+
+  return raw;
+}, z.boolean().optional());
+
+export const listProductsQuerySchema = z.object({
+  q: z.preprocess(firstQueryValue, z.preprocess(blankToUndefined, z.string().trim().max(200).optional())),
+  category: z.preprocess(
+    firstQueryValue,
+    z.preprocess(blankToUndefined, z.string().trim().max(200).optional()),
+  ),
+  featured: queryBoolean,
+  includeInactive: queryBoolean,
+});
+
 export type CreateProductInput = z.infer<typeof createProductSchema>;
 export type UpdateProductInput = z.infer<typeof updateProductSchema>;
 export type ProductStatusInput = z.infer<typeof productStatusSchema>;
 export type ProductGoInput = z.infer<typeof productGoSchema>;
+export type ListProductsQuery = z.infer<typeof listProductsQuerySchema>;

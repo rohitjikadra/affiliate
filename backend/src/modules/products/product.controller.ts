@@ -3,6 +3,7 @@ import { AppError } from "../../lib/errors.js";
 import { recordProductClick } from "../clicks/click.service.js";
 import type {
   CreateProductInput,
+  ListProductsQuery,
   ProductGoInput,
   ProductStatusInput,
   UpdateProductInput,
@@ -27,7 +28,7 @@ function readParam(req: Request, name: string): string {
 }
 
 export async function list(_req: Request, res: Response): Promise<void> {
-  const data = await listProducts();
+  const data = await listProducts((res.locals.query ?? {}) as ListProductsQuery);
   res.status(200).json({ data });
 }
 

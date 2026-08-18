@@ -59,16 +59,46 @@ export async function getApiHealth(): Promise<HealthResponse> {
   return response.json() as Promise<HealthResponse>;
 }
 
+export type ListProductsQuery = {
+  q?: string;
+  category?: string;
+  featured?: boolean;
+  includeInactive?: boolean;
+};
+
 export async function listCategories(): Promise<ProductCategory[]> {
   return request<ProductCategory[]>("/api/categories");
 }
 
-export async function listProducts(): Promise<Product[]> {
-  return request<Product[]>("/api/products");
+export async function getCategory(slug: string): Promise<ProductCategory> {
+  return request<ProductCategory>(`/api/categories/${encodeURIComponent(slug)}`);
+}
+
+export async function listProducts(query: ListProductsQuery = {}): Promise<Product[]> {
+  const params = new URLSearchParams();
+
+  if (query.q?.trim()) {
+    params.set("q", query.q.trim());
+  }
+
+  if (query.category) {
+    params.set("category", query.category);
+  }
+
+  if (query.featured) {
+    params.set("featured", "true");
+  }
+
+  if (query.includeInactive) {
+    params.set("includeInactive", "true");
+  }
+
+  const search = params.toString();
+  return request<Product[]>(`/api/products${search ? `?${search}` : ""}`);
 }
 
 export async function getProduct(idOrSlug: string): Promise<Product> {
-  return request<Product>(`/api/products/${idOrSlug}`);
+  return request<Product>(`/api/products/${encodeURIComponent(idOrSlug)}`);
 }
 
 export async function startCheckout(slug: string): Promise<{ url: string }> {

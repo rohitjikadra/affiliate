@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { validateBody } from "../../middleware/validate.js";
+import { validateBody, validateQuery } from "../../middleware/validate.js";
 import {
   create,
   getByIdOrSlug,
@@ -11,6 +11,7 @@ import {
 } from "./product.controller.js";
 import {
   createProductSchema,
+  listProductsQuerySchema,
   productGoSchema,
   productStatusSchema,
   updateProductSchema,
@@ -18,7 +19,7 @@ import {
 
 export const productRouter = Router();
 
-productRouter.get("/", list);
+productRouter.get("/", validateQuery(listProductsQuerySchema), list);
 productRouter.post("/", validateBody(createProductSchema), create);
 productRouter.post("/:slug/go", validateBody(productGoSchema), go);
 productRouter.get("/:id", getByIdOrSlug);

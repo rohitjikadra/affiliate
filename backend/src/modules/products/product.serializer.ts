@@ -11,7 +11,13 @@ const storeLabels: Record<ProductSource, string> = {
   FLIPKART: "Flipkart",
 };
 
-export function serializeProduct(product: ProductWithCategory) {
+type SerializeOptions = {
+  includeAffiliateUrl?: boolean;
+};
+
+export function serializeProduct(product: ProductWithCategory, options: SerializeOptions = {}) {
+  const includeAffiliateUrl = options.includeAffiliateUrl ?? true;
+
   return {
     id: product.id,
     slug: product.slug,
@@ -22,7 +28,7 @@ export function serializeProduct(product: ProductWithCategory) {
     originalPrice: product.originalPrice?.toString() ?? null,
     rating: product.rating?.toString() ?? null,
     currency: product.currency,
-    affiliateUrl: product.affiliateUrl,
+    affiliateUrl: includeAffiliateUrl ? product.affiliateUrl : null,
     source: product.source,
     store: storeLabels[product.source],
     sourceId: product.sourceId,

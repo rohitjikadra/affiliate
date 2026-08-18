@@ -6,6 +6,7 @@ export type ProductCategory = {
   name: string;
   description?: string | null;
   imageUrl?: string | null;
+  productCount?: number;
 };
 
 export type Product = {

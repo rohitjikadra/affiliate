@@ -5,6 +5,7 @@ import { useState } from "react";
 import type { Product } from "@/types/product";
 import { ApiError } from "@/types/product";
 import { deleteProduct, setProductStatus } from "@/lib/api";
+import { formatMoney } from "@/lib/money";
 
 type ProductTableProps = {
   initialProducts: Product[];
@@ -97,7 +98,7 @@ export function ProductTable({ initialProducts }: ProductTableProps) {
                 </td>
                 <td className="px-4 py-3 text-slate-600">{product.category?.name ?? "—"}</td>
                 <td className="px-4 py-3 font-medium text-slate-900">
-                  {formatPrice(product.price, product.currency)}
+                  {formatMoney(product.price, product.currency)}
                 </td>
                 <td className="px-4 py-3">
                   <span
@@ -147,17 +148,4 @@ export function ProductTable({ initialProducts }: ProductTableProps) {
       </div>
     </div>
   );
-}
-
-function formatPrice(amount: string, currency: string): string {
-  const value = Number(amount);
-  if (Number.isNaN(value)) {
-    return amount;
-  }
-
-  return new Intl.NumberFormat("en-IN", {
-    style: "currency",
-    currency,
-    maximumFractionDigits: 2,
-  }).format(value);
 }

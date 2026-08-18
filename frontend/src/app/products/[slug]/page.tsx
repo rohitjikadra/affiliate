@@ -1,6 +1,8 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { BuyNowButton } from "@/components/product/BuyNowButton";
 import { getProduct } from "@/lib/api";
+import { formatMoney } from "@/lib/money";
 import { ApiError } from "@/types/product";
 
 type ProductPageProps = {
@@ -44,7 +46,13 @@ export default async function ProductPage({ params }: ProductPageProps) {
 
           <div>
             <p className="text-sm font-medium uppercase tracking-wide text-teal-700">
-              {product.category?.name ?? "Catalog"}
+              {product.category ? (
+                <Link href={`/categories/${product.category.slug}`} className="hover:text-teal-800">
+                  {product.category.name}
+                </Link>
+              ) : (
+                "Catalog"
+              )}
             </p>
             <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">
               {product.title}
@@ -83,12 +91,4 @@ export default async function ProductPage({ params }: ProductPageProps) {
     }
     throw error;
   }
-}
-
-function formatMoney(amount: number, currency: string): string {
-  return new Intl.NumberFormat("en-IN", {
-    style: "currency",
-    currency,
-    maximumFractionDigits: 2,
-  }).format(amount);
 }

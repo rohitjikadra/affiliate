@@ -3,7 +3,7 @@ import { ProductTable } from "@/components/admin/ProductTable";
 import { listProducts } from "@/lib/api";
 
 export default async function AdminProductsPage() {
-  const products = await listProducts();
+  const products = await listProducts({ includeInactive: true });
 
   return (
     <section>
