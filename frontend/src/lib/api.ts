@@ -24,13 +24,16 @@ type ApiEnvelope<T> = {
 };
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const cookie = await incomingCookieHeader();
   const response = await fetch(`${API_URL}${path}`, {
     ...init,
+    credentials: "include",
+    cache: "no-store",
     headers: {
       "Content-Type": "application/json",
+      ...(cookie ? { Cookie: cookie } : {}),
       ...(init?.headers ?? {}),
     },
-    cache: "no-store",
   });
 
   const body = (await response.json().catch(() => null)) as ApiEnvelope<T> | null;
@@ -45,6 +48,20 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   }
 
   return (body as ApiEnvelope<T>).data;
+}
+
+async function incomingCookieHeader(): Promise<string | undefined> {
+  if (typeof window !== "undefined") {
+    return undefined;
+  }
+
+  try {
+    const { cookies } = await import("next/headers");
+    const token = (await cookies()).get("ah_session")?.value;
+    return token ? `ah_session=${encodeURIComponent(token)}` : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 export async function getApiHealth(): Promise<HealthResponse> {
@@ -135,6 +152,31 @@ export async function deleteProduct(id: string): Promise<{ id: string }> {
   return request<{ id: string }>(`/api/products/${id}`, {
     method: "DELETE",
   });
+}
+
+export async function loginAdmin(password: string): Promise<{ ok: true }> {
+  return request<{ ok: true }>("/api/auth/login", {
+    method: "POST",
+    body: JSON.stringify({ password }),
+  });
+}
+
+export async function logoutAdmin(): Promise<{ ok: true }> {
+  return request<{ ok: true }>("/api/auth/logout", {
+    method: "POST",
+  });
+}
+
+export async function getAdminSession(): Promise<boolean> {
+  try {
+    await request<{ ok: true }>("/api/auth/me");
+    return true;
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 401) {
+      return false;
+    }
+    throw error;
+  }
 }
 
 export { API_URL };

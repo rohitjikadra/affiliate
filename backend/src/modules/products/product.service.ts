@@ -51,7 +51,10 @@ async function assertCategoryExists(categoryId?: string | null): Promise<void> {
   }
 }
 
-export async function listProducts(query: ListProductsQuery = {}) {
+export async function listProducts(
+  query: ListProductsQuery = {},
+  options: { includeAffiliateUrl?: boolean } = {},
+) {
   const products = await prisma.product.findMany({
     where: {
       ...(query.includeInactive ? {} : { isActive: true }),
@@ -70,7 +73,9 @@ export async function listProducts(query: ListProductsQuery = {}) {
     orderBy: [{ featured: "desc" }, { createdAt: "desc" }],
   });
 
-  return products.map((product) => serializeProduct(product, { includeAffiliateUrl: false }));
+  return products.map((product) =>
+    serializeProduct(product, { includeAffiliateUrl: options.includeAffiliateUrl ?? false }),
+  );
 }
 
 export async function getProductById(id: string) {
@@ -86,7 +91,10 @@ export async function getProductById(id: string) {
   return serializeProduct(product);
 }
 
-export async function getProductByIdOrSlug(idOrSlug: string) {
+export async function getProductByIdOrSlug(
+  idOrSlug: string,
+  options: { isAdmin?: boolean; includeAffiliateUrl?: boolean } = {},
+) {
   const product = await prisma.product.findFirst({
     where: {
       OR: [{ slug: idOrSlug }, { id: idOrSlug }],
@@ -94,11 +102,11 @@ export async function getProductByIdOrSlug(idOrSlug: string) {
     include: productInclude,
   });
 
-  if (!product) {
+  if (!product || (!options.isAdmin && !product.isActive)) {
     throw new AppError(404, "NOT_FOUND", "Product not found");
   }
 
-  return serializeProduct(product);
+  return serializeProduct(product, { includeAffiliateUrl: options.includeAffiliateUrl ?? false });
 }
 
 export async function createProduct(input: CreateProductInput) {

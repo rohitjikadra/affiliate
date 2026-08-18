@@ -41,4 +41,7 @@ export const env = {
   port: readPort("PORT", 4000),
   databaseUrl: readString("DATABASE_URL"),
   corsOrigin: readString("CORS_ORIGIN", "http://localhost:3000"),
+  adminPassword: readString("ADMIN_PASSWORD", nodeEnv === "production" ? undefined : "changeme"),
+  sessionSecret: readString("SESSION_SECRET", nodeEnv === "production" ? undefined : "dev-only-session-secret"),
+  sessionTtlMs: 7 * 24 * 60 * 60 * 1000,
 } as const;

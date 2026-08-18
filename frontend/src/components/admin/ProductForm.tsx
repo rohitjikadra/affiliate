@@ -11,6 +11,7 @@ import {
   type ProductFormValues,
 } from "@/lib/product-form";
 import { createProduct, updateProduct } from "@/lib/api";
+import { redirectToLogin } from "@/lib/admin";
 
 type ProductFormProps = {
   mode: "create" | "edit";
@@ -98,6 +99,10 @@ export function ProductForm({ mode, categories, product }: ProductFormProps) {
       router.push("/admin/products");
       router.refresh();
     } catch (error) {
+      if (error instanceof ApiError && error.status === 401) {
+        redirectToLogin();
+        return;
+      }
       if (error instanceof ApiError) {
         const fieldErrors: Record<string, string> = {};
         for (const detail of error.details ?? []) {

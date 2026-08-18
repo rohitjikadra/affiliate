@@ -1,13 +1,15 @@
+import { cookies } from "next/headers";
 import Link from "next/link";
 
 const navItems = [
   { href: "/products", label: "Products" },
   { href: "/#categories", label: "Categories" },
   { href: "/#featured", label: "Featured" },
-  { href: "/admin/products", label: "Admin" },
 ];
 
-export function Header() {
+export async function Header() {
+  const isAdmin = Boolean((await cookies()).get("ah_session")?.value);
+
   return (
     <header className="sticky top-0 z-20 border-b border-slate-200/80 bg-white/90 backdrop-blur">
       <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-4 sm:px-6">
@@ -29,6 +31,11 @@ export function Header() {
               {item.label}
             </Link>
           ))}
+          {isAdmin ? (
+            <Link href="/admin/products" className="transition-colors hover:text-slate-900">
+              Admin
+            </Link>
+          ) : null}
         </nav>
       </div>
     </header>

@@ -28,12 +28,23 @@ function readParam(req: Request, name: string): string {
 }
 
 export async function list(_req: Request, res: Response): Promise<void> {
-  const data = await listProducts((res.locals.query ?? {}) as ListProductsQuery);
+  const isAdmin = Boolean(res.locals.isAdmin);
+  const query = { ...((res.locals.query ?? {}) as ListProductsQuery) };
+
+  if (!isAdmin) {
+    query.includeInactive = false;
+  }
+
+  const data = await listProducts(query, { includeAffiliateUrl: isAdmin });
   res.status(200).json({ data });
 }
 
 export async function getByIdOrSlug(req: Request, res: Response): Promise<void> {
-  const data = await getProductByIdOrSlug(readParam(req, "id"));
+  const isAdmin = Boolean(res.locals.isAdmin);
+  const data = await getProductByIdOrSlug(readParam(req, "id"), {
+    isAdmin,
+    includeAffiliateUrl: isAdmin,
+  });
   res.status(200).json({ data });
 }
 

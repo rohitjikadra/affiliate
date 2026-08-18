@@ -5,6 +5,7 @@ import { useState } from "react";
 import type { Product } from "@/types/product";
 import { ApiError } from "@/types/product";
 import { deleteProduct, setProductStatus } from "@/lib/api";
+import { redirectToLogin } from "@/lib/admin";
 import { formatMoney } from "@/lib/money";
 
 type ProductTableProps = {
@@ -24,6 +25,10 @@ export function ProductTable({ initialProducts }: ProductTableProps) {
       const updated = await setProductStatus(product.id, !product.isActive);
       setProducts((current) => current.map((item) => (item.id === updated.id ? updated : item)));
     } catch (err) {
+      if (err instanceof ApiError && err.status === 401) {
+        redirectToLogin();
+        return;
+      }
       setError(err instanceof ApiError ? err.message : "Could not update product status.");
     } finally {
       setPendingId(null);
@@ -42,6 +47,10 @@ export function ProductTable({ initialProducts }: ProductTableProps) {
       await deleteProduct(product.id);
       setProducts((current) => current.filter((item) => item.id !== product.id));
     } catch (err) {
+      if (err instanceof ApiError && err.status === 401) {
+        redirectToLogin();
+        return;
+      }
       setError(err instanceof ApiError ? err.message : "Could not delete product.");
     } finally {
       setPendingId(null);

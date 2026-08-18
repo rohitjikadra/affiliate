@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { validateBody, validateQuery } from "../../middleware/validate.js";
+import { attachAdmin, requireAdmin } from "../../middleware/requireAdmin.js";
 import {
   create,
   getByIdOrSlug,
@@ -19,10 +20,12 @@ import {
 
 export const productRouter = Router();
 
+productRouter.use(attachAdmin);
+
 productRouter.get("/", validateQuery(listProductsQuerySchema), list);
-productRouter.post("/", validateBody(createProductSchema), create);
+productRouter.post("/", requireAdmin, validateBody(createProductSchema), create);
 productRouter.post("/:slug/go", validateBody(productGoSchema), go);
 productRouter.get("/:id", getByIdOrSlug);
-productRouter.patch("/:id", validateBody(updateProductSchema), update);
-productRouter.patch("/:id/status", validateBody(productStatusSchema), updateStatus);
-productRouter.delete("/:id", remove);
+productRouter.patch("/:id", requireAdmin, validateBody(updateProductSchema), update);
+productRouter.patch("/:id/status", requireAdmin, validateBody(productStatusSchema), updateStatus);
+productRouter.delete("/:id", requireAdmin, remove);
