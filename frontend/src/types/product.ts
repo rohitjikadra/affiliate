@@ -28,6 +28,7 @@ export type Product = {
   available: boolean;
   categoryId: string | null;
   category: Pick<ProductCategory, "id" | "slug" | "name"> | null;
+  clickCount?: number;
   createdAt: string;
   updatedAt: string;
 };

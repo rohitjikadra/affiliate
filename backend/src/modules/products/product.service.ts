@@ -53,8 +53,9 @@ async function assertCategoryExists(categoryId?: string | null): Promise<void> {
 
 export async function listProducts(
   query: ListProductsQuery = {},
-  options: { includeAffiliateUrl?: boolean } = {},
+  options: { includeAffiliateUrl?: boolean; includeClickCount?: boolean } = {},
 ) {
+  const includeClickCount = options.includeClickCount ?? false;
   const products = await prisma.product.findMany({
     where: {
       ...(query.includeInactive ? {} : { isActive: true }),
@@ -69,12 +70,18 @@ export async function listProducts(
           }
         : {}),
     },
-    include: productInclude,
+    include: {
+      ...productInclude,
+      ...(includeClickCount ? { _count: { select: { clicks: true } } } : {}),
+    },
     orderBy: [{ featured: "desc" }, { createdAt: "desc" }],
   });
 
   return products.map((product) =>
-    serializeProduct(product, { includeAffiliateUrl: options.includeAffiliateUrl ?? false }),
+    serializeProduct(product, {
+      includeAffiliateUrl: options.includeAffiliateUrl ?? false,
+      includeClickCount,
+    }),
   );
 }
 

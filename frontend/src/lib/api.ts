@@ -179,4 +179,41 @@ export async function getAdminSession(): Promise<boolean> {
   }
 }
 
+export type ClickPeriodCounts = {
+  all: number;
+  last7Days: number;
+  last30Days: number;
+};
+
+export type ClickProductStat = {
+  id: string;
+  slug: string;
+  title: string;
+  source: Product["source"];
+  isActive: boolean;
+  clicks: ClickPeriodCounts;
+};
+
+export type RecentClick = {
+  id: string;
+  source: Product["source"];
+  referrer: string | null;
+  createdAt: string;
+  product: {
+    id: string;
+    slug: string;
+    title: string;
+  };
+};
+
+export type ClickStats = {
+  totals: ClickPeriodCounts;
+  products: ClickProductStat[];
+  recent: RecentClick[];
+};
+
+export async function getClickStats(): Promise<ClickStats> {
+  return request<ClickStats>("/api/admin/stats/clicks");
+}
+
 export { API_URL };

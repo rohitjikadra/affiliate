@@ -23,7 +23,11 @@ export function ProductTable({ initialProducts }: ProductTableProps) {
 
     try {
       const updated = await setProductStatus(product.id, !product.isActive);
-      setProducts((current) => current.map((item) => (item.id === updated.id ? updated : item)));
+      setProducts((current) =>
+        current.map((item) =>
+          item.id === updated.id ? { ...updated, clickCount: item.clickCount } : item,
+        ),
+      );
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
         redirectToLogin();
@@ -78,6 +82,7 @@ export function ProductTable({ initialProducts }: ProductTableProps) {
               <th className="px-4 py-3">Product</th>
               <th className="px-4 py-3">Category</th>
               <th className="px-4 py-3">Price</th>
+              <th className="px-4 py-3">Clicks</th>
               <th className="px-4 py-3">Status</th>
               <th className="px-4 py-3">Actions</th>
             </tr>
@@ -109,6 +114,7 @@ export function ProductTable({ initialProducts }: ProductTableProps) {
                 <td className="px-4 py-3 font-medium text-slate-900">
                   {formatMoney(product.price, product.currency)}
                 </td>
+                <td className="px-4 py-3 text-slate-600">{product.clickCount ?? "—"}</td>
                 <td className="px-4 py-3">
                   <span
                     className={`rounded-full px-2 py-1 text-xs font-medium ${

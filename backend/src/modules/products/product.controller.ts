@@ -35,7 +35,10 @@ export async function list(_req: Request, res: Response): Promise<void> {
     query.includeInactive = false;
   }
 
-  const data = await listProducts(query, { includeAffiliateUrl: isAdmin });
+  const data = await listProducts(query, {
+    includeAffiliateUrl: isAdmin,
+    includeClickCount: isAdmin,
+  });
   res.status(200).json({ data });
 }
 

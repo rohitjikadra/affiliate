@@ -27,6 +27,12 @@ export default async function AdminDashboardLayout({ children }: { children: Rea
             All products
           </Link>
           <Link
+            href="/admin/stats"
+            className="rounded-xl border border-slate-200 px-4 py-2 text-slate-700 hover:bg-white"
+          >
+            Clicks
+          </Link>
+          <Link
             href="/admin/products/create"
             className="rounded-xl bg-teal-700 px-4 py-2 text-white hover:bg-teal-800"
           >
