@@ -6,6 +6,7 @@ export const SESSION_COOKIE = "ah_session";
 
 type SessionPayload = {
   exp: number;
+  pwd: string;
 };
 
 function cookieOptions(): CookieOptions {
@@ -18,21 +19,36 @@ function cookieOptions(): CookieOptions {
   };
 }
 
+export function passwordFingerprint(password: string, secret: string = env.sessionSecret): string {
+  return createHmac("sha256", secret).update(password).digest("base64url").slice(0, 16);
+}
+
 export function passwordsMatch(input: string, expected: string): boolean {
   const left = createHash("sha256").update(input).digest();
   const right = createHash("sha256").update(expected).digest();
   return timingSafeEqual(left, right);
 }
 
-export function createSessionToken(): string {
-  const body = Buffer.from(JSON.stringify({ exp: Date.now() + env.sessionTtlMs } satisfies SessionPayload)).toString(
-    "base64url",
-  );
-  const signature = createHmac("sha256", env.sessionSecret).update(body).digest("base64url");
+export function createSessionToken(
+  ttlMs: number = env.sessionTtlMs,
+  password: string = env.adminPassword,
+  secret: string = env.sessionSecret,
+): string {
+  const body = Buffer.from(
+    JSON.stringify({
+      exp: Date.now() + ttlMs,
+      pwd: passwordFingerprint(password, secret),
+    } satisfies SessionPayload),
+  ).toString("base64url");
+  const signature = createHmac("sha256", secret).update(body).digest("base64url");
   return `${body}.${signature}`;
 }
 
-export function verifySessionToken(token: string): boolean {
+export function verifySessionToken(
+  token: string,
+  password: string = env.adminPassword,
+  secret: string = env.sessionSecret,
+): boolean {
   const separator = token.lastIndexOf(".");
   if (separator <= 0) {
     return false;
@@ -40,7 +56,7 @@ export function verifySessionToken(token: string): boolean {
 
   const body = token.slice(0, separator);
   const signature = token.slice(separator + 1);
-  const expected = createHmac("sha256", env.sessionSecret).update(body).digest("base64url");
+  const expected = createHmac("sha256", secret).update(body).digest("base64url");
   const left = Buffer.from(signature);
   const right = Buffer.from(expected);
 
@@ -50,7 +66,14 @@ export function verifySessionToken(token: string): boolean {
 
   try {
     const payload = JSON.parse(Buffer.from(body, "base64url").toString("utf8")) as SessionPayload;
-    return typeof payload.exp === "number" && payload.exp > Date.now();
+    if (typeof payload.exp !== "number" || payload.exp <= Date.now()) {
+      return false;
+    }
+
+    const expectedPwd = passwordFingerprint(password, secret);
+    const pwdLeft = Buffer.from(payload.pwd ?? "");
+    const pwdRight = Buffer.from(expectedPwd);
+    return pwdLeft.length === pwdRight.length && timingSafeEqual(pwdLeft, pwdRight);
   } catch {
     return false;
   }

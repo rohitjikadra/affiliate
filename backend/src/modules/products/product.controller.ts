@@ -1,6 +1,9 @@
 import type { Request, Response } from "express";
 import { AppError } from "../../lib/errors.js";
+import { classifyDevice, clientIp, hashIp } from "../../lib/ip.js";
 import { recordProductClick } from "../clicks/click.service.js";
+import { listGuidesForProduct } from "../guides/guide.service.js";
+import { listComparisonsForProduct } from "../comparisons/comparison.service.js";
 import type {
   CreateProductInput,
   ListProductsQuery,
@@ -13,6 +16,7 @@ import {
   deleteProduct,
   getProductByIdOrSlug,
   listProducts,
+  listRelatedProducts,
   setProductStatus,
   updateProduct,
 } from "./product.service.js";
@@ -39,15 +43,33 @@ export async function list(_req: Request, res: Response): Promise<void> {
     includeAffiliateUrl: isAdmin,
     includeClickCount: isAdmin,
   });
-  res.status(200).json({ data });
+  res.status(200).json({ data: data.items, meta: data.meta });
 }
 
 export async function getByIdOrSlug(req: Request, res: Response): Promise<void> {
   const isAdmin = Boolean(res.locals.isAdmin);
-  const data = await getProductByIdOrSlug(readParam(req, "id"), {
+  const product = await getProductByIdOrSlug(readParam(req, "id"), {
     isAdmin,
     includeAffiliateUrl: isAdmin,
   });
+  const [relatedProducts, relatedGuides, relatedComparisons] = await Promise.all([
+    listRelatedProducts(product.id, product.categoryId),
+    listGuidesForProduct(product.id),
+    listComparisonsForProduct(product.id),
+  ]);
+  res.status(200).json({
+    data: {
+      ...product,
+      relatedProducts,
+      relatedGuides,
+      relatedComparisons,
+    },
+  });
+}
+
+export async function related(req: Request, res: Response): Promise<void> {
+  const product = await getProductByIdOrSlug(readParam(req, "id"), { isAdmin: false });
+  const data = await listRelatedProducts(product.id, product.categoryId);
   res.status(200).json({ data });
 }
 
@@ -76,6 +98,12 @@ export async function go(req: Request, res: Response): Promise<void> {
   const data = await recordProductClick(readParam(req, "slug"), {
     referrer: body.referrer ?? req.get("referer") ?? undefined,
     userAgent: req.get("user-agent") ?? undefined,
+    landingPath: body.landingPath,
+    utmSource: body.utmSource,
+    utmMedium: body.utmMedium,
+    utmCampaign: body.utmCampaign,
+    ipHash: hashIp(clientIp(req)),
+    device: classifyDevice(req.get("user-agent") ?? undefined),
   });
-  res.status(200).json({ data });
+  res.status(200).json({ data: { url: data.url } });
 }

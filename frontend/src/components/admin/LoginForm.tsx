@@ -34,13 +34,13 @@ export function LoginForm({ next }: LoginFormProps) {
   return (
     <form
       onSubmit={(event) => void onSubmit(event)}
-      className="mx-auto w-full max-w-md rounded-3xl border border-slate-200 bg-white p-8 shadow-sm"
+      className="mx-auto w-full max-w-md rounded-md border border-neutral-200 bg-white p-8"
     >
-      <p className="text-sm font-medium uppercase tracking-wide text-teal-700">Admin</p>
-      <h1 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">Sign in</h1>
-      <p className="mt-2 text-sm text-slate-500">Enter the admin password to manage products.</p>
+      <p className="text-sm font-semibold text-navy">AffiliateHub Admin</p>
+      <h1 className="mt-2 text-2xl font-bold text-neutral-900">Sign in</h1>
+      <p className="mt-2 text-sm text-neutral-600">Enter the admin password to manage the shop.</p>
 
-      <label htmlFor="admin-password" className="mt-6 block text-sm font-medium text-slate-700">
+      <label htmlFor="admin-password" className="mt-6 block text-sm font-medium text-neutral-800">
         Password
       </label>
       <input
@@ -51,7 +51,7 @@ export function LoginForm({ next }: LoginFormProps) {
         value={password}
         onChange={(event) => setPassword(event.target.value)}
         required
-        className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-slate-900 outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-600/20"
+        className="mt-2 w-full rounded-md border border-neutral-300 px-4 py-3 text-neutral-900 outline-none focus:border-navy"
       />
 
       {error ? <p className="mt-3 text-sm text-red-600">{error}</p> : null}
@@ -59,7 +59,7 @@ export function LoginForm({ next }: LoginFormProps) {
       <button
         type="submit"
         disabled={pending || password.trim() === ""}
-        className="mt-6 w-full rounded-xl bg-teal-700 px-4 py-3 text-sm font-semibold text-white hover:bg-teal-800 disabled:opacity-60"
+        className="mt-6 w-full rounded-full bg-cta px-4 py-3 text-sm font-bold text-navy hover:bg-cta-hover disabled:opacity-60"
       >
         {pending ? "Signing in…" : "Sign in"}
       </button>

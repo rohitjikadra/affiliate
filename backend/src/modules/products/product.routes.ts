@@ -1,11 +1,14 @@
 import { Router } from "express";
 import { validateBody, validateQuery } from "../../middleware/validate.js";
 import { attachAdmin, requireAdmin } from "../../middleware/requireAdmin.js";
+import { goRateLimit } from "../../middleware/rateLimit.js";
+import { offerRouter } from "../offers/offer.routes.js";
 import {
   create,
   getByIdOrSlug,
   go,
   list,
+  related,
   remove,
   update,
   updateStatus,
@@ -24,7 +27,9 @@ productRouter.use(attachAdmin);
 
 productRouter.get("/", validateQuery(listProductsQuerySchema), list);
 productRouter.post("/", requireAdmin, validateBody(createProductSchema), create);
-productRouter.post("/:slug/go", validateBody(productGoSchema), go);
+productRouter.post("/:slug/go", goRateLimit, validateBody(productGoSchema), go);
+productRouter.get("/:id/related", related);
+productRouter.use("/:productId/offers", offerRouter);
 productRouter.get("/:id", getByIdOrSlug);
 productRouter.patch("/:id", requireAdmin, validateBody(updateProductSchema), update);
 productRouter.patch("/:id/status", requireAdmin, validateBody(productStatusSchema), updateStatus);

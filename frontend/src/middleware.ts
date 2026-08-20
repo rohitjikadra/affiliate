@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  if (pathname === "/admin/login" || pathname.startsWith("/admin/login/")) {
+  if (pathname === "/admin/login" || pathname.startsWith("/admin/login/") || pathname === "/admin/revalidate") {
     return NextResponse.next();
   }
 
@@ -18,5 +18,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/admin/:path*"],
+  matcher: ["/admin", "/admin/:path*"],
 };

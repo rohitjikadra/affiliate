@@ -6,7 +6,7 @@ import type { Product } from "@/types/product";
 import { ApiError } from "@/types/product";
 import { deleteProduct, setProductStatus } from "@/lib/api";
 import { redirectToLogin } from "@/lib/admin";
-import { formatMoney } from "@/lib/money";
+import { formatOptionalMoney } from "@/lib/money";
 
 type ProductTableProps = {
   initialProducts: Product[];
@@ -63,21 +63,21 @@ export function ProductTable({ initialProducts }: ProductTableProps) {
 
   if (products.length === 0) {
     return (
-      <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-16 text-center">
-        <p className="text-sm font-medium text-slate-700">No products yet.</p>
-        <Link href="/admin/products/create" className="mt-3 inline-block text-sm font-semibold text-teal-700">
-          Create the first product
+      <div className="rounded-md border border-dashed border-neutral-300 bg-white px-6 py-16 text-center">
+        <p className="text-sm font-medium text-neutral-700">No products match this view.</p>
+        <Link href="/admin/products/create" className="mt-3 inline-block text-sm font-semibold text-navy">
+          Create a product
         </Link>
       </div>
     );
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+    <div className="overflow-hidden rounded-md border border-neutral-200 bg-white">
       {error ? <p className="border-b border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p> : null}
       <div className="overflow-x-auto">
         <table className="min-w-full text-left text-sm">
-          <thead className="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
+          <thead className="bg-neutral-50 text-xs font-semibold uppercase tracking-wide text-neutral-500">
             <tr>
               <th className="px-4 py-3">Product</th>
               <th className="px-4 py-3">Category</th>
@@ -89,7 +89,7 @@ export function ProductTable({ initialProducts }: ProductTableProps) {
           </thead>
           <tbody>
             {products.map((product) => (
-              <tr key={product.id} className="border-t border-slate-100">
+              <tr key={product.id} className="border-t border-neutral-100 hover:bg-neutral-50">
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-3">
                     {product.imageUrl ? (
@@ -97,28 +97,28 @@ export function ProductTable({ initialProducts }: ProductTableProps) {
                       <img
                         src={product.imageUrl}
                         alt=""
-                        className="h-12 w-12 rounded-lg object-cover"
+                        className="h-12 w-12 rounded-md object-cover"
                       />
                     ) : (
-                      <span className="flex h-12 w-12 items-center justify-center rounded-lg bg-slate-100 font-semibold text-slate-500">
+                      <span className="flex h-12 w-12 items-center justify-center rounded-md bg-neutral-100 font-semibold text-neutral-500">
                         {product.title.charAt(0)}
                       </span>
                     )}
                     <div>
-                      <p className="font-medium text-slate-900">{product.title}</p>
-                      <p className="text-xs text-slate-500">{product.slug}</p>
+                      <p className="font-medium text-neutral-900">{product.title}</p>
+                      <p className="text-xs text-neutral-500">{product.slug}</p>
                     </div>
                   </div>
                 </td>
-                <td className="px-4 py-3 text-slate-600">{product.category?.name ?? "—"}</td>
-                <td className="px-4 py-3 font-medium text-slate-900">
-                  {formatMoney(product.price, product.currency)}
+                <td className="px-4 py-3 text-neutral-600">{product.category?.name ?? "—"}</td>
+                <td className="px-4 py-3 font-medium text-neutral-900">
+                  {formatOptionalMoney(product.price, product.currency) ?? "See offer"}
                 </td>
-                <td className="px-4 py-3 text-slate-600">{product.clickCount ?? "—"}</td>
+                <td className="px-4 py-3 text-neutral-600">{product.clickCount ?? "—"}</td>
                 <td className="px-4 py-3">
                   <span
                     className={`rounded-full px-2 py-1 text-xs font-medium ${
-                      product.isActive ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"
+                      product.isActive ? "bg-emerald-50 text-emerald-700" : "bg-neutral-100 text-neutral-500"
                     }`}
                   >
                     {product.isActive ? "Active" : "Inactive"}
@@ -128,13 +128,13 @@ export function ProductTable({ initialProducts }: ProductTableProps) {
                   <div className="flex flex-wrap gap-2">
                     <Link
                       href={`/products/${product.slug}`}
-                      className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                      className="rounded-md border border-neutral-200 px-3 py-1.5 text-xs font-medium text-neutral-700 hover:bg-white"
                     >
                       View
                     </Link>
                     <Link
                       href={`/admin/products/${product.id}/edit`}
-                      className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                      className="rounded-md border border-neutral-200 px-3 py-1.5 text-xs font-medium text-neutral-700 hover:bg-white"
                     >
                       Edit
                     </Link>
@@ -142,7 +142,7 @@ export function ProductTable({ initialProducts }: ProductTableProps) {
                       type="button"
                       disabled={pendingId === product.id}
                       onClick={() => void onToggle(product)}
-                      className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+                      className="rounded-md border border-neutral-200 px-3 py-1.5 text-xs font-medium text-neutral-700 hover:bg-white disabled:opacity-60"
                     >
                       {product.isActive ? "Deactivate" : "Activate"}
                     </button>
@@ -150,7 +150,7 @@ export function ProductTable({ initialProducts }: ProductTableProps) {
                       type="button"
                       disabled={pendingId === product.id}
                       onClick={() => void onDelete(product)}
-                      className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-60"
+                      className="rounded-md border border-red-200 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-60"
                     >
                       Delete
                     </button>

@@ -1,5 +1,5 @@
-import type { Product } from "@/types/product";
 import Link from "next/link";
+import type { Product } from "@/types/product";
 import { ProductGrid } from "@/components/product/ProductGrid";
 
 type FeaturedProductsProps = {
@@ -9,17 +9,11 @@ type FeaturedProductsProps = {
 export function FeaturedProducts({ products }: FeaturedProductsProps) {
   return (
     <section id="featured" className="scroll-mt-24">
-      <div className="mb-6">
-        <p className="text-sm font-medium uppercase tracking-wide text-teal-700">Picks</p>
-        <h2 className="mt-1 text-2xl font-semibold tracking-tight text-slate-900">
-          Featured products
-        </h2>
-        <p className="mt-2 text-sm text-slate-500">
-          Independent picks with retailer affiliate links.{" "}
-          <Link href="/affiliate-disclosure" className="font-medium text-teal-700 hover:text-teal-800">
-            Affiliate disclosure
-          </Link>
-        </p>
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <h2 className="text-lg font-bold text-navy">Featured kitchen picks</h2>
+        <Link href="/affiliate-disclosure" className="text-xs text-neutral-600 underline">
+          Affiliate disclosure
+        </Link>
       </div>
       <ProductGrid
         products={products}

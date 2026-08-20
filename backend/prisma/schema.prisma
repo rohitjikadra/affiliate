@@ -13,6 +13,25 @@ enum ProductSource {
   FLIPKART
 }
 
+enum MerchantKind {
+  MARKETPLACE
+  DIRECT
+  NETWORK
+}
+
+enum GuideKind {
+  ARTICLE
+  BEST_OF
+}
+
+enum GuideProductBadge {
+  BEST_OVERALL
+  BEST_BUDGET
+  BEST_PREMIUM
+  BEST_FOR_BEGINNERS
+  RELATED
+}
+
 model Category {
   id          String    @id @default(cuid())
   slug        String    @unique
@@ -20,6 +39,7 @@ model Category {
   description String?
   imageUrl    String?   @map("image_url")
   products    Product[]
+  guides      Guide[]
   createdAt   DateTime  @default(now()) @map("created_at")
   updatedAt   DateTime  @updatedAt @map("updated_at")
 
@@ -27,25 +47,41 @@ model Category {
 }
 
 model Product {
-  id            String           @id @default(cuid())
-  slug          String           @unique
-  title         String
-  description   String?
-  imageUrl      String?          @map("image_url")
-  price         Decimal          @db.Decimal(12, 2)
-  originalPrice Decimal?         @map("original_price") @db.Decimal(12, 2)
-  rating        Decimal?         @db.Decimal(3, 2)
-  currency      String           @default("INR")
-  affiliateUrl  String?          @map("affiliate_url")
-  source        ProductSource    @default(MANUAL)
-  sourceId      String?          @map("source_id")
-  featured      Boolean          @default(false)
-  isActive      Boolean          @default(true) @map("is_active")
-  categoryId    String?          @map("category_id")
-  category      Category?        @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-  clicks        AffiliateClick[]
-  createdAt     DateTime         @default(now()) @map("created_at")
-  updatedAt     DateTime         @updatedAt @map("updated_at")
+  id              String           @id @default(cuid())
+  slug            String           @unique
+  title           String
+  description     String?
+  pros            String?
+  cons            String?
+  bestFor         String?          @map("best_for")
+  faq             String?
+  brand           String?
+  warranty        String?
+  specs           Json?
+  scoreBreakdown  Json?            @map("score_breakdown")
+  imageUrl        String?          @map("image_url")
+  images          Json?
+  price           Decimal?         @db.Decimal(12, 2)
+  originalPrice   Decimal?         @map("original_price") @db.Decimal(12, 2)
+  rating          Decimal?         @db.Decimal(3, 2)
+  ourScore        Decimal?         @map("our_score") @db.Decimal(4, 1)
+  currency        String           @default("INR")
+  affiliateUrl    String?          @map("affiliate_url")
+  source          ProductSource    @default(MANUAL)
+  sourceId        String?          @map("source_id")
+  seoTitle        String?          @map("seo_title")
+  seoDescription  String?          @map("seo_description")
+  featured        Boolean          @default(false)
+  isActive        Boolean          @default(true) @map("is_active")
+  categoryId      String?          @map("category_id")
+  category        Category?        @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  clicks          AffiliateClick[]
+  offers          Offer[]
+  guideProducts   GuideProduct[]
+  comparisonItems ComparisonItem[]
+  winningComparisons Comparison[]  @relation("ComparisonWinner")
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
 
   @@index([categoryId])
   @@index([featured])
@@ -54,16 +90,186 @@ model Product {
   @@map("products")
 }
 
+model Merchant {
+  id         String           @id @default(cuid())
+  slug       String           @unique
+  name       String
+  websiteUrl String?          @map("website_url")
+  kind       MerchantKind     @default(MARKETPLACE)
+  logoUrl    String?          @map("logo_url")
+  isActive   Boolean          @default(true) @map("is_active")
+  network    String?
+  defaultTag String?          @map("default_tag")
+  disclosure String?
+  offers     Offer[]
+  clicks     AffiliateClick[]
+  createdAt  DateTime         @default(now()) @map("created_at")
+  updatedAt  DateTime         @updatedAt @map("updated_at")
+
+  @@map("merchants")
+}
+
+model Offer {
+  id            String           @id @default(cuid())
+  productId     String           @map("product_id")
+  product       Product          @relation(fields: [productId], references: [id], onDelete: Cascade)
+  merchantId    String           @map("merchant_id")
+  merchant      Merchant         @relation(fields: [merchantId], references: [id], onDelete: Restrict)
+  title         String?
+  price         Decimal?         @db.Decimal(12, 2)
+  originalPrice Decimal?         @map("original_price") @db.Decimal(12, 2)
+  currency      String           @default("INR")
+  affiliateUrl  String           @map("affiliate_url")
+  externalId    String           @default("") @map("external_id")
+  inStock       Boolean          @default(true) @map("in_stock")
+  isPrimary     Boolean          @default(false) @map("is_primary")
+  lastCheckedAt DateTime?        @map("last_checked_at")
+  clicks        AffiliateClick[]
+  priceHistory  PriceSnapshot[]
+  createdAt     DateTime         @default(now()) @map("created_at")
+  updatedAt     DateTime         @updatedAt @map("updated_at")
+
+  @@unique([productId, merchantId, externalId])
+  @@index([productId, isPrimary])
+  @@index([merchantId])
+  @@map("offers")
+}
+
+model Guide {
+  id             String         @id @default(cuid())
+  slug           String         @unique
+  title          String
+  excerpt        String?
+  body           String         @db.Text
+  kind           GuideKind      @default(ARTICLE)
+  published      Boolean        @default(false)
+  methodology    String?        @db.Text
+  seoTitle       String?        @map("seo_title")
+  seoDescription String?        @map("seo_description")
+  categoryId     String?        @map("category_id")
+  category       Category?      @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  products       GuideProduct[]
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
+
+  @@index([published])
+  @@index([categoryId])
+  @@index([kind, published])
+  @@map("guides")
+}
+
+model GuideProduct {
+  id        String            @id @default(cuid())
+  guideId   String            @map("guide_id")
+  productId String            @map("product_id")
+  rank      Int?
+  badge     GuideProductBadge @default(RELATED)
+  notes     String?
+  guide     Guide             @relation(fields: [guideId], references: [id], onDelete: Cascade)
+  product   Product           @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([guideId, productId])
+  @@index([guideId, rank])
+  @@map("guide_products")
+}
+
+model Comparison {
+  id             String            @id @default(cuid())
+  slug           String            @unique
+  title          String
+  excerpt        String?
+  body           String            @db.Text
+  published      Boolean           @default(false)
+  winnerProductId String?          @map("winner_product_id")
+  winner         Product?          @relation("ComparisonWinner", fields: [winnerProductId], references: [id], onDelete: SetNull)
+  methodology    String?           @db.Text
+  seoTitle       String?           @map("seo_title")
+  seoDescription String?           @map("seo_description")
+  items          ComparisonItem[]
+  createdAt      DateTime          @default(now()) @map("created_at")
+  updatedAt      DateTime          @updatedAt @map("updated_at")
+
+  @@index([published])
+  @@map("comparisons")
+}
+
+model ComparisonItem {
+  id           String     @id @default(cuid())
+  comparisonId String     @map("comparison_id")
+  productId    String     @map("product_id")
+  sortOrder    Int        @default(0) @map("sort_order")
+  notes        String?
+  comparison   Comparison @relation(fields: [comparisonId], references: [id], onDelete: Cascade)
+  product      Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([comparisonId, productId])
+  @@index([comparisonId, sortOrder])
+  @@map("comparison_items")
+}
+
 model AffiliateClick {
-  id        String        @id @default(cuid())
-  productId String        @map("product_id")
-  product   Product       @relation(fields: [productId], references: [id], onDelete: Cascade)
-  source    ProductSource
-  referrer  String?
-  userAgent String?       @map("user_agent")
-  createdAt DateTime      @default(now()) @map("created_at")
+  id          String         @id @default(cuid())
+  productId   String         @map("product_id")
+  product     Product        @relation(fields: [productId], references: [id], onDelete: Cascade)
+  offerId     String?        @map("offer_id")
+  offer       Offer?         @relation(fields: [offerId], references: [id], onDelete: SetNull)
+  merchantId  String?        @map("merchant_id")
+  merchant    Merchant?      @relation(fields: [merchantId], references: [id], onDelete: SetNull)
+  source      ProductSource
+  referrer    String?
+  userAgent   String?        @map("user_agent")
+  landingPath String?        @map("landing_path")
+  utmSource   String?        @map("utm_source")
+  utmMedium   String?        @map("utm_medium")
+  utmCampaign String?        @map("utm_campaign")
+  ipHash      String?        @map("ip_hash")
+  device      String?
+  createdAt   DateTime       @default(now()) @map("created_at")
 
   @@index([productId])
+  @@index([offerId])
+  @@index([merchantId])
   @@index([createdAt])
   @@map("affiliate_clicks")
+}
+
+model PageView {
+  id          String   @id @default(cuid())
+  path        String
+  entityType  String?  @map("entity_type")
+  entityId    String?  @map("entity_id")
+  referrer    String?
+  utmSource   String?  @map("utm_source")
+  utmMedium   String?  @map("utm_medium")
+  utmCampaign String?  @map("utm_campaign")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([createdAt])
+  @@index([entityType, entityId])
+  @@index([path])
+  @@map("page_views")
+}
+
+model PriceSnapshot {
+  id         String   @id @default(cuid())
+  offerId    String   @map("offer_id")
+  offer      Offer    @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  price      Decimal  @db.Decimal(12, 2)
+  currency   String
+  recordedAt DateTime @default(now()) @map("recorded_at")
+
+  @@index([offerId, recordedAt])
+  @@map("price_snapshots")
+}
+
+model SlugRedirect {
+  id         String   @id @default(cuid())
+  entityType String   @map("entity_type")
+  fromSlug   String   @map("from_slug")
+  toSlug     String   @map("to_slug")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@unique([entityType, fromSlug])
+  @@index([entityType, toSlug])
+  @@map("slug_redirects")
 }

@@ -1,21 +1,65 @@
 import Link from "next/link";
 import { AffiliateNotice } from "@/components/legal/AffiliateNotice";
-import { ApiStatus } from "@/components/home/ApiStatus";
 
 export function Footer() {
   return (
-    <footer className="mt-auto border-t border-slate-200 bg-white">
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-3 px-4 py-6 text-sm text-slate-500 sm:flex-row sm:items-start sm:justify-between sm:px-6">
+    <footer className="mt-auto bg-navy text-white">
+      <div className="mx-auto grid w-full max-w-6xl gap-8 px-4 py-10 sm:grid-cols-3 sm:px-6">
         <div>
-          <p>© {new Date().getFullYear()} AffiliateHub</p>
-          <AffiliateNotice className="mt-2 max-w-xl text-sm leading-6 text-slate-500" />
+          <p className="font-bold">AffiliateHub</p>
+          <p className="mt-2 text-sm text-white/70">
+            Kitchen appliance recommendations for Indian homes. We send you to Amazon through tracked affiliate offers.
+          </p>
+          <AffiliateNotice className="mt-3 text-xs leading-5 text-white/70 [&_a]:text-white [&_a]:underline" />
         </div>
-        <div className="flex flex-col items-start gap-2 sm:items-end">
-          <Link href="/affiliate-disclosure" className="font-medium text-teal-700 hover:text-teal-800">
-            Affiliate disclosure
-          </Link>
-          <ApiStatus />
+        <div>
+          <p className="text-sm font-semibold">Shop</p>
+          <ul className="mt-3 space-y-2 text-sm text-white/80">
+            <li>
+              <Link href="/products" className="hover:underline">
+                All products
+              </Link>
+            </li>
+            <li>
+              <Link href="/guides" className="hover:underline">
+                Buying guides
+              </Link>
+            </li>
+            <li>
+              <Link href="/categories/kitchen-appliances" className="hover:underline">
+                Kitchen appliances
+              </Link>
+            </li>
+          </ul>
         </div>
+        <div>
+          <p className="text-sm font-semibold">Legal</p>
+          <ul className="mt-3 space-y-2 text-sm text-white/80">
+            <li>
+              <Link href="/about" className="hover:underline">
+                About
+              </Link>
+            </li>
+            <li>
+              <Link href="/contact" className="hover:underline">
+                Contact
+              </Link>
+            </li>
+            <li>
+              <Link href="/privacy" className="hover:underline">
+                Privacy
+              </Link>
+            </li>
+            <li>
+              <Link href="/affiliate-disclosure" className="hover:underline">
+                Affiliate disclosure
+              </Link>
+            </li>
+          </ul>
+        </div>
+      </div>
+      <div className="border-t border-white/10 py-4 text-center text-xs text-white/60">
+        © {new Date().getFullYear()} AffiliateHub. Some links are affiliate links. We may earn a commission.
       </div>
     </footer>
   );

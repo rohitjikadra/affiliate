@@ -10,6 +10,10 @@ import { apiRouter } from "./routes/index.js";
 export function createApp() {
   const app = express();
 
+  if (env.trustProxy > 0) {
+    app.set("trust proxy", env.trustProxy);
+  }
+
   app.disable("x-powered-by");
   app.use(helmet());
   app.use(

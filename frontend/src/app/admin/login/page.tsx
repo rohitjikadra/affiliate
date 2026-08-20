@@ -18,7 +18,7 @@ export default async function AdminLoginPage({ searchParams }: LoginPageProps) {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl items-center px-4 py-16 sm:px-6">
+    <div className="flex min-h-screen items-center justify-center px-4">
       <LoginForm next={destination} />
     </div>
   );

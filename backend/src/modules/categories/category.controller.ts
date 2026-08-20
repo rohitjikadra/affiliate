@@ -1,6 +1,13 @@
 import type { Request, Response } from "express";
 import { AppError } from "../../lib/errors.js";
-import { getCategoryBySlug, listCategories } from "./category.service.js";
+import type { CreateCategoryInput, UpdateCategoryInput } from "./category.schemas.js";
+import {
+  createCategory,
+  deleteCategory,
+  getCategoryByIdOrSlug,
+  listCategories,
+  updateCategory,
+} from "./category.service.js";
 
 function readParam(req: Request, name: string): string {
   const value = req.params[name];
@@ -17,7 +24,22 @@ export async function list(_req: Request, res: Response): Promise<void> {
   res.status(200).json({ data });
 }
 
-export async function getBySlug(req: Request, res: Response): Promise<void> {
-  const data = await getCategoryBySlug(readParam(req, "slug"));
+export async function getByIdOrSlug(req: Request, res: Response): Promise<void> {
+  const data = await getCategoryByIdOrSlug(readParam(req, "id"));
+  res.status(200).json({ data });
+}
+
+export async function create(req: Request, res: Response): Promise<void> {
+  const data = await createCategory(req.body as CreateCategoryInput);
+  res.status(201).json({ data });
+}
+
+export async function update(req: Request, res: Response): Promise<void> {
+  const data = await updateCategory(readParam(req, "id"), req.body as UpdateCategoryInput);
+  res.status(200).json({ data });
+}
+
+export async function remove(req: Request, res: Response): Promise<void> {
+  const data = await deleteCategory(readParam(req, "id"));
   res.status(200).json({ data });
 }

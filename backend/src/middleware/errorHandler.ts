@@ -11,6 +11,10 @@ export function errorHandler(
   _next: NextFunction,
 ): void {
   if (err instanceof AppError) {
+    if (err.statusCode === 308 && err.details && typeof err.details === "object" && "toSlug" in err.details) {
+      res.setHeader("X-Redirect-Slug", String((err.details as { toSlug: string }).toSlug));
+    }
+
     res.status(err.statusCode).json({
       error: {
         code: err.code,

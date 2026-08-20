@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import { Footer } from "@/components/layout/Footer";
-import { Header } from "@/components/layout/Header";
 import "./globals.css";
+import { SITE_NAME, SITE_TAGLINE, siteUrl } from "@/lib/site";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -15,9 +14,12 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AffiliateHub — Product discovery",
-  description:
-    "Search products, browse categories, and explore featured affiliate picks.",
+  metadataBase: new URL(siteUrl()),
+  title: {
+    default: `${SITE_NAME} — Kitchen appliances for Indian homes`,
+    template: `%s — ${SITE_NAME}`,
+  },
+  description: SITE_TAGLINE,
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
@@ -26,11 +28,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="flex min-h-full flex-col bg-slate-50 font-sans text-slate-900">
-        <Header />
-        <main className="flex-1">{children}</main>
-        <Footer />
-      </body>
+      <body className="flex min-h-full flex-col bg-white font-sans text-neutral-900">{children}</body>
     </html>
   );
 }
