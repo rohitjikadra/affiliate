@@ -14,7 +14,7 @@ export function SearchBar({
   const hero = variant === "hero";
 
   return (
-    <form action={action} method="get" className={`flex w-full ${hero ? "max-w-2xl" : "max-w-xl"}`}>
+    <form action={action} method="get" className={`flex w-full overflow-hidden rounded-md border border-line bg-surface ${hero ? "" : "max-w-xl"}`}>
       <label htmlFor={inputId} className="sr-only">
         Search products
       </label>
@@ -23,19 +23,19 @@ export function SearchBar({
         type="search"
         name="q"
         defaultValue={defaultValue}
-        placeholder="Search Prestige, Philips, mixer grinders"
+        placeholder="Search mixer grinders, Prestige, Philips"
         className={
           hero
-            ? "h-12 w-full rounded-l-md border-0 bg-white px-4 text-base text-ink outline-none"
-            : "h-10 w-full rounded-l-md border border-neutral-300 px-3 text-sm outline-none focus:border-navy"
+            ? "h-12 w-full border-0 bg-transparent px-4 text-base text-ink outline-none placeholder:text-ink-subtle sm:h-14"
+            : "h-10 w-full border-0 bg-transparent px-3 text-sm text-ink outline-none placeholder:text-ink-subtle"
         }
       />
       <button
         type="submit"
         className={
           hero
-            ? "h-12 rounded-r-md bg-search px-5 text-sm font-bold text-white hover:bg-search-hover"
-            : "h-10 rounded-r-md bg-search px-4 text-sm font-bold text-white hover:bg-search-hover"
+            ? "h-12 shrink-0 bg-forest px-5 text-sm font-semibold text-white hover:bg-forest-2 sm:h-14 sm:px-6"
+            : "h-10 shrink-0 bg-forest px-4 text-sm font-semibold text-white hover:bg-forest-2"
         }
       >
         Search

@@ -1,38 +1,39 @@
 import Link from "next/link";
 import { SearchBar } from "@/components/home/SearchBar";
-import { SITE_TAGLINE } from "@/lib/site";
 
-const SHOP_CHIPS = [
-  { href: "/products?q=mixer", label: "Mixer grinders" },
-  { href: "/products?q=air+fryer", label: "Air fryers" },
+const APPLIANCE_CHIPS = [
+  { href: "/products?q=mixer", label: "Mixer Grinders" },
+  { href: "/products?q=air+fryer", label: "Air Fryers" },
   { href: "/products?q=induction", label: "Induction" },
   { href: "/products?q=kettle", label: "Kettles" },
-  { href: "/products?q=blender", label: "Hand blenders" },
+  { href: "/products?q=blender", label: "Hand Blenders" },
 ];
 
 export function HomeBanner() {
   return (
-    <section className="rounded-2xl bg-forest px-5 py-8 text-white sm:px-8 sm:py-10">
-      <h1 className="font-display max-w-3xl text-3xl font-semibold tracking-tight sm:text-4xl">
-        {SITE_TAGLINE.replace(/\.$/, "")}
+    <section className="pt-2 sm:pt-4">
+      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-forest">Kitchen appliances for Indian homes</p>
+      <h1 className="font-display mt-3 max-w-3xl text-[1.85rem] font-semibold leading-tight tracking-tight text-ink sm:text-4xl lg:text-5xl">
+        Find the right kitchen appliance at the right price.
       </h1>
-      <p className="mt-2 max-w-xl text-sm text-white/80">
-        Photos, current merchant prices, and an honest “who should avoid” note — then a live offer.
+      <p className="mt-4 max-w-xl text-sm leading-6 text-ink-muted sm:text-base">
+        Search a model, compare merchant offers, and read who each product is actually for — then check the live price.
       </p>
-      <div className="mt-5">
+      <div className="mt-6 max-w-2xl">
         <SearchBar variant="hero" inputId="home-search" />
       </div>
-      <div className="mt-4 flex flex-wrap gap-2">
-        {SHOP_CHIPS.map((chip) => (
-          <Link
-            key={chip.href}
-            href={chip.href}
-            className="rounded-full bg-white/15 px-3 py-1.5 text-xs font-medium text-white hover:bg-white/25"
-          >
-            {chip.label}
-          </Link>
+      <ul className="mt-4 flex flex-wrap gap-2">
+        {APPLIANCE_CHIPS.map((chip) => (
+          <li key={chip.href}>
+            <Link
+              href={chip.href}
+              className="inline-flex rounded-full border border-line bg-surface px-3.5 py-1.5 text-sm font-medium text-ink hover:border-forest hover:text-forest"
+            >
+              {chip.label}
+            </Link>
+          </li>
         ))}
-      </div>
+      </ul>
     </section>
   );
 }

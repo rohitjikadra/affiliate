@@ -1,5 +1,6 @@
-import Link from "next/link";
 import { CatalogUnavailable } from "@/components/catalog/CatalogUnavailable";
+import { HomeComparisonCard } from "@/components/home/HomeComparisonCard";
+import { Breadcrumb } from "@/components/layout/Breadcrumb";
 import { listComparisons } from "@/lib/api";
 import { publicMetadata, jsonLd } from "@/lib/seo";
 import { breadcrumbJsonLd } from "@/lib/json-ld";
@@ -18,7 +19,7 @@ export default async function CompareIndexPage() {
     const { items } = await listComparisons({ limit: 50 });
 
     return (
-      <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6">
+      <div className="shop-wrap py-6 sm:py-10">
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
@@ -30,30 +31,24 @@ export default async function CompareIndexPage() {
             ),
           }}
         />
-        <div className="rounded-md bg-white px-4 py-5 sm:px-6">
-          <p className="text-sm text-neutral-500">
-            <Link href="/" className="hover:text-navy">Home</Link>
-            <span className="px-2">/</span>
-            <span>Compare</span>
+        <Breadcrumb items={[{ name: "Home", href: "/" }, { name: "Compare" }]} />
+        <header className="mt-6">
+          <h1 className="font-display text-2xl font-semibold tracking-tight text-ink sm:text-3xl">
+            Compare kitchen appliances
+          </h1>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-ink-muted">
+            Editorial side-by-sides. Current prices come from eligible merchant offers — not leftover catalog figures.
           </p>
-          <h1 className="mt-2 text-2xl font-bold text-navy">Compare kitchen appliances</h1>
-          <p className="mt-1 text-sm text-neutral-600">Editorial side-by-sides. Prices come from merchant offers on each product page.</p>
-        </div>
+        </header>
         {items.length === 0 ? (
-          <div className="mt-4 rounded-md bg-white px-6 py-16 text-center">
-            <p className="text-sm font-medium text-neutral-700">No comparisons published yet.</p>
+          <div className="mt-8 rounded-md border border-dashed border-line bg-surface px-6 py-16 text-center">
+            <p className="text-sm font-medium text-ink">No comparisons published yet.</p>
           </div>
         ) : (
-          <ul className="mt-4 grid gap-4 sm:grid-cols-2">
+          <ul className="mt-8 grid gap-4 sm:grid-cols-2">
             {items.map((item) => (
               <li key={item.id}>
-                <Link
-                  href={`/compare/${item.slug}`}
-                  className="block h-full rounded-md border border-neutral-200 bg-white p-5 hover:border-navy"
-                >
-                  <h2 className="text-lg font-semibold text-navy">{item.title}</h2>
-                  {item.excerpt ? <p className="mt-2 text-sm leading-6 text-neutral-600">{item.excerpt}</p> : null}
-                </Link>
+                <HomeComparisonCard comparison={item} />
               </li>
             ))}
           </ul>
@@ -62,7 +57,7 @@ export default async function CompareIndexPage() {
     );
   } catch {
     return (
-      <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6">
+      <div className="shop-wrap py-10">
         <CatalogUnavailable />
       </div>
     );
