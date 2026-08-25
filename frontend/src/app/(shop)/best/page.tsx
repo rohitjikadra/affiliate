@@ -1,9 +1,11 @@
-import Link from "next/link";
 import { CatalogUnavailable } from "@/components/catalog/CatalogUnavailable";
+import { HomeGuideCard } from "@/components/home/HomeGuideCard";
+import { Breadcrumb } from "@/components/layout/Breadcrumb";
 import { listGuides } from "@/lib/api";
 import { publicMetadata, jsonLd } from "@/lib/seo";
 import { breadcrumbJsonLd } from "@/lib/json-ld";
 import type { Metadata } from "next";
+import Link from "next/link";
 
 export const metadata: Metadata = publicMetadata({
   title: "Best kitchen appliances",
@@ -18,7 +20,7 @@ export default async function BestIndexPage() {
     const { items } = await listGuides({ kind: "BEST_OF", limit: 50 });
 
     return (
-      <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6">
+      <div className="shop-wrap py-6 sm:py-10">
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
@@ -30,32 +32,28 @@ export default async function BestIndexPage() {
             ),
           }}
         />
-        <div className="rounded-md bg-white px-4 py-5 sm:px-6">
-          <p className="text-sm text-neutral-500">
-            <Link href="/" className="hover:text-navy">Home</Link>
-            <span className="px-2">/</span>
-            <span>Best of</span>
+        <Breadcrumb items={[{ name: "Home", href: "/" }, { name: "Best of" }]} />
+        <header className="mt-6">
+          <h1 className="font-display text-2xl font-semibold tracking-tight text-ink sm:text-3xl">
+            Best kitchen appliances
+          </h1>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-ink-muted">
+            Editorial shortlists for Indian homes.{" "}
+            <Link href="/guides" className="font-medium text-forest underline">
+              All guides
+            </Link>{" "}
+            for longer buying advice.
           </p>
-          <h1 className="mt-2 text-2xl font-bold text-navy">Best kitchen appliances</h1>
-          <p className="mt-1 text-sm text-neutral-600">
-            Editorial shortlists. See <Link href="/guides" className="text-navy underline">all guides</Link> for longer buying advice.
-          </p>
-        </div>
+        </header>
         {items.length === 0 ? (
-          <div className="mt-4 rounded-md bg-white px-6 py-16 text-center">
-            <p className="text-sm font-medium text-neutral-700">No best-of lists published yet.</p>
+          <div className="mt-8 rounded-md border border-dashed border-line bg-surface px-6 py-16 text-center">
+            <p className="text-sm font-medium text-ink">No best-of lists published yet.</p>
           </div>
         ) : (
-          <ul className="mt-4 grid gap-4 sm:grid-cols-2">
+          <ul className="mt-8 grid gap-4 lg:grid-cols-2">
             {items.map((item) => (
               <li key={item.id}>
-                <Link
-                  href={`/best/${item.slug}`}
-                  className="block h-full rounded-md border border-neutral-200 bg-white p-5 hover:border-navy"
-                >
-                  <h2 className="text-lg font-semibold text-navy">{item.title}</h2>
-                  {item.excerpt ? <p className="mt-2 text-sm leading-6 text-neutral-600">{item.excerpt}</p> : null}
-                </Link>
+                <HomeGuideCard guide={item} />
               </li>
             ))}
           </ul>
@@ -64,7 +62,7 @@ export default async function BestIndexPage() {
     );
   } catch {
     return (
-      <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6">
+      <div className="shop-wrap py-10">
         <CatalogUnavailable />
       </div>
     );
