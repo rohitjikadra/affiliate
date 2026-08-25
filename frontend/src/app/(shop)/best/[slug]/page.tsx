@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { GuideBody } from "@/components/guides/GuideBody";
 import { TrackPageView } from "@/components/analytics/TrackPageView";
-import { ProductCard } from "@/components/home/ProductCard";
+import { ProductCard } from "@/components/product/ProductCard";
 import { BuyNowButton } from "@/components/product/BuyNowButton";
 import { ScoreBadge } from "@/components/product/StarRating";
 import { getGuide } from "@/lib/api";

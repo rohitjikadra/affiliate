@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { GuideBody } from "@/components/guides/GuideBody";
 import { TrackPageView } from "@/components/analytics/TrackPageView";
-import { ProductCard } from "@/components/home/ProductCard";
+import { ProductCard } from "@/components/product/ProductCard";
 import { getGuide } from "@/lib/api";
 import { ApiError } from "@/types/product";
 import type { Metadata } from "next";
