@@ -29,6 +29,18 @@ describe("createAlertSchema", () => {
     });
     expect(result.success).toBe(true);
   });
+
+  it("defaults type to TARGET_PRICE", () => {
+    const result = createAlertSchema.safeParse({
+      productId: "prod_1",
+      email: "shopper@example.com",
+      targetPrice: 1999,
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.type).toBe("TARGET_PRICE");
+    }
+  });
 });
 
 describe("alertMatches", () => {

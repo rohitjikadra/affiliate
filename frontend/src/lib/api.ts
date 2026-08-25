@@ -198,11 +198,12 @@ export type PriceHistory = {
 
 export async function getPriceHistory(
   idOrSlug: string,
-  range: "7d" | "30d" | "90d" = "90d",
+  range: "7d" | "30d" | "90d" = "30d",
+  options?: { revalidate?: number | false },
 ): Promise<PriceHistory> {
   const result = await request<PriceHistory>(
     `/api/products/${encodeURIComponent(idOrSlug)}/price-history?range=${range}`,
-    { revalidate: 120 },
+    { revalidate: options?.revalidate ?? 120 },
   );
   return result.data;
 }
@@ -401,8 +402,15 @@ export type PriceAlertPayload = {
   percentThreshold?: number;
 };
 
-export async function createPriceAlert(payload: PriceAlertPayload): Promise<{ id: string; email: string; productId: string }> {
-  const result = await request<{ id: string; email: string; productId: string }>("/api/alerts", {
+export type PriceAlertResult = {
+  id: string;
+  email: string;
+  productId: string;
+  emailSent?: boolean;
+};
+
+export async function createPriceAlert(payload: PriceAlertPayload): Promise<PriceAlertResult> {
+  const result = await request<PriceAlertResult>("/api/alerts", {
     method: "POST",
     body: JSON.stringify(payload),
   });

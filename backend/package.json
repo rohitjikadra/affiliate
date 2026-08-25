@@ -17,6 +17,8 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
     "prisma:seed": "tsx prisma/seed.ts",
+    "fixture:dev": "tsx scripts/dev-fixture.ts",
+    "fixture:dev:reset": "tsx scripts/dev-fixture.ts --reset",
     "postinstall": "prisma generate"
   },
   "keywords": [

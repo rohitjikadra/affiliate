@@ -34,12 +34,15 @@ export default async function UnsubscribeAlertPage({ searchParams }: Unsubscribe
   }
 
   return (
-    <article className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6">
-      <div className="rounded-md bg-white px-5 py-8 sm:px-8">
-        <h1 className="text-3xl font-bold text-navy">{ok ? "Unsubscribed" : "Could not unsubscribe"}</h1>
-        <p className="mt-4 text-base leading-7 text-neutral-700">{message}</p>
-        <p className="mt-6 text-sm">
-          <Link href="/privacy" className="font-medium text-navy underline">
+    <article className="shop-wrap py-10 sm:py-14">
+      <div className="product-section mx-auto max-w-lg">
+        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-forest">Price alert</p>
+        <h1 className="font-display mt-2 text-2xl font-semibold text-ink">
+          {ok ? "Unsubscribed" : "Could not unsubscribe"}
+        </h1>
+        <p className="mt-3 text-sm leading-6 text-ink-muted">{message}</p>
+        <p className="mt-6">
+          <Link href="/privacy" className="text-sm font-semibold text-forest underline">
             Privacy
           </Link>
         </p>

@@ -99,7 +99,7 @@ export async function createPriceAlert(input: {
         },
       });
 
-  await sendEmail({
+  const emailSent = await sendEmail({
     to: email,
     subject: keepVerified
       ? `Your price alert was updated for ${product.title}`
@@ -109,7 +109,7 @@ export async function createPriceAlert(input: {
       : `Confirm this alert: ${siteLink(`/alerts/verify?token=${verifyToken}`)}\n\nUnsubscribe: ${siteLink(`/alerts/unsubscribe?token=${unsubToken}`)}\n\n${PRIVACY}`,
   });
 
-  return { id: alert.id, email, productId: product.id };
+  return { id: alert.id, email, productId: product.id, emailSent };
 }
 
 export async function verifyAlert(token: string) {
