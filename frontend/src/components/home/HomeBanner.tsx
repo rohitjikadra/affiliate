@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { SearchBar } from "@/components/home/SearchBar";
+import { SITE_HEADLINE } from "@/lib/site";
 
 const APPLIANCE_CHIPS = [
   { href: "/products?q=mixer", label: "Mixer Grinders" },
@@ -12,7 +13,7 @@ const APPLIANCE_CHIPS = [
 export function HomeBanner() {
   return (
     <section className="pt-2 sm:pt-4">
-      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-forest">Kitchen appliances for Indian homes</p>
+      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-forest">{SITE_HEADLINE}</p>
       <h1 className="font-display mt-3 max-w-3xl text-[1.85rem] font-semibold leading-tight tracking-tight text-ink sm:text-4xl lg:text-5xl">
         Find the right kitchen appliance at the right price.
       </h1>

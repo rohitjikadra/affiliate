@@ -182,8 +182,11 @@ model ProductIdentifier {
   merchant   Merchant?      @relation(fields: [merchantId], references: [id], onDelete: SetNull)
   createdAt  DateTime       @default(now()) @map("created_at")
 
-  @@unique([type, value])
+  // Partial unique indexes live in SQL:
+  // ASIN/GTIN/EAN/UPC globally unique; SKU/MERCHANT_ID/MPN unique per merchant.
   @@index([productId])
+  @@index([type, value], map: "product_identifiers_type_value_idx")
+  @@index([merchantId, type, value], map: "product_identifiers_merchant_id_type_value_idx")
   @@map("product_identifiers")
 }
 

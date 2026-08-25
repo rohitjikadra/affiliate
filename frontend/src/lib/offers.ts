@@ -44,7 +44,8 @@ export function checkoutOffer(product: Product): Offer | undefined {
   if (best) {
     return best;
   }
-  return product.offers.find((offer) => offer.available);
+  const buyable = product.offers.filter((offer) => offer.available);
+  return buyable.find((offer) => offer.isPrimary) ?? buyable[0];
 }
 
 export function availabilityLabel(offer: Offer): string {

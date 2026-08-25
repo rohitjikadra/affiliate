@@ -29,8 +29,8 @@ export default function AboutPage() {
           </p>
           <p>
             When you click <strong>Check price</strong>, you leave this site and complete the purchase with a
-            retailer such as Amazon. Some of those links are affiliate links. If you buy after clicking, we may earn
-            a commission. The price you pay does not change because of that.
+            merchant. Some of those links are affiliate links. If you buy after clicking, we may earn a commission.
+            The price you pay does not change because of that.
           </p>
           <p>
             Listings are editorial. Prices can go stale; we label how recently an offer was checked. Always confirm

@@ -2,14 +2,14 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { SITE_NAME } from "@/lib/site";
+import { SITE_CATEGORY_NAV_LABEL, SITE_CATEGORY_SLUG, SITE_NAME } from "@/lib/site";
 import { Suspense, useState } from "react";
 
 const navItems = [
   { href: "/products", label: "Products" },
   { href: "/guides", label: "Guides" },
   { href: "/compare", label: "Compare" },
-  { href: "/categories/kitchen-appliances", label: "Kitchen" },
+  { href: `/categories/${SITE_CATEGORY_SLUG}`, label: SITE_CATEGORY_NAV_LABEL },
 ];
 
 function HeaderSearchForm({
@@ -199,7 +199,7 @@ export function SiteHeader({ isAdmin }: SiteHeaderProps) {
       ) : null}
 
       <p className="border-t border-line bg-paper px-4 py-1.5 text-center text-xs text-ink-muted sm:px-6">
-        As an Amazon Associate we earn from qualifying purchases.{" "}
+        Some links are affiliate links. We may earn a commission if you buy after clicking.{" "}
         <Link href="/affiliate-disclosure" className="font-medium text-forest underline decoration-forest/30 underline-offset-2">
           Affiliate disclosure
         </Link>

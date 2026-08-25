@@ -1,4 +1,7 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { validateNormalizedOffer } from "../integrations/amazon.js";
+import { createFakeAdapter, FAKE_ADAPTER_KEY } from "../integrations/fake.js";
+import { registerAdapter } from "../integrations/registry.js";
 import type { MerchantAdapter, NormalizedOffer } from "../integrations/types.js";
 import { AdapterDisabledError } from "../integrations/types.js";
 
@@ -66,17 +69,29 @@ function item(partial: Partial<NormalizedOffer> = {}): NormalizedOffer {
   };
 }
 
-function mockAdapter(lookup: MerchantAdapter["lookup"], enabled = true): MerchantAdapter {
-  return { key: "AMAZON_IN", enabled, lookup };
+function mockAdapter(
+  lookup: MerchantAdapter["lookup"],
+  enabled = true,
+  validate: MerchantAdapter["validate"] = validateNormalizedOffer,
+): MerchantAdapter {
+  return { key: "AMAZON_IN", enabled, lookup, validate };
 }
 
 describe("price refresh", () => {
+  const unregisters: Array<() => void> = [];
+
   beforeEach(() => {
     findUnique.mockReset();
     update.mockReset().mockResolvedValue({});
     enqueueJob.mockReset().mockResolvedValue({});
     recordPriceSnapshot.mockReset().mockResolvedValue(true);
     recordPriceEvents.mockReset().mockResolvedValue([]);
+  });
+
+  afterEach(() => {
+    while (unregisters.length > 0) {
+      unregisters.pop()?.();
+    }
   });
 
   it("backs off exponentially and pauses after 8 failures", () => {
@@ -146,7 +161,7 @@ describe("price refresh", () => {
       expect.objectContaining({
         offerId: "offer-1",
         price: 4199,
-        source: "AMAZON_CREATORS",
+        source: "WORKER",
         fetchStatus: "SUCCESS",
       }),
     );
@@ -192,5 +207,101 @@ describe("price refresh", () => {
       where: { id: "offer-1" },
       data: expect.objectContaining({ fetchStatus: "NEVER" }),
     });
+  });
+
+  it("uses the FakeAdapter validator and writes a WORKER snapshot for non-ASIN ids", async () => {
+    findUnique.mockResolvedValue(
+      offerRow({
+        externalId: "SKU-99",
+        merchant: { integrationKey: "FAKE_TEST", defaultTag: null, fetchEnabled: true },
+      }),
+    );
+    const fakeItem = item({
+      externalId: "SKU-99",
+      currency: "USD",
+      productUrl: "https://example.com/p/SKU-99",
+      affiliateUrl: "https://example.com/p/SKU-99",
+    });
+    await refreshOffer(
+      "offer-1",
+      createFakeAdapter({
+        lookup: async () => [fakeItem],
+      }),
+    );
+    expect(update).toHaveBeenCalledWith({
+      where: { id: "offer-1" },
+      data: expect.objectContaining({
+        price: 4199,
+        currency: "USD",
+        fetchStatus: "SUCCESS",
+      }),
+    });
+    expect(recordPriceSnapshot).toHaveBeenCalledWith(
+      expect.objectContaining({
+        offerId: "offer-1",
+        price: 4199,
+        source: "WORKER",
+      }),
+    );
+  });
+
+  it("does not apply Amazon ASIN rules to a FakeAdapter offer", async () => {
+    findUnique.mockResolvedValue(offerRow({ externalId: "SKU-99" }));
+    await refreshOffer(
+      "offer-1",
+      createFakeAdapter({
+        lookup: async () => [item({ externalId: "SKU-99", currency: "USD" })],
+      }),
+    );
+    expect(update).toHaveBeenCalledWith({
+      where: { id: "offer-1" },
+      data: expect.objectContaining({ fetchStatus: "SUCCESS" }),
+    });
+    expect(update).not.toHaveBeenCalledWith({
+      where: { id: "offer-1" },
+      data: expect.objectContaining({ fetchStatus: "INVALID" }),
+    });
+  });
+
+  it("selects the FakeAdapter from the registry by merchant integration key", async () => {
+    const fakeItem = item({
+      externalId: "SKU-99",
+      currency: "INR",
+      productUrl: "https://example.com/p/SKU-99",
+      affiliateUrl: "https://example.com/p/SKU-99",
+    });
+    unregisters.push(
+      registerAdapter(FAKE_ADAPTER_KEY, () =>
+        createFakeAdapter({
+          lookup: async () => [fakeItem],
+        }),
+      ),
+    );
+    findUnique.mockResolvedValue(
+      offerRow({
+        externalId: "SKU-99",
+        merchant: { integrationKey: FAKE_ADAPTER_KEY, defaultTag: null, fetchEnabled: true },
+      }),
+    );
+    await refreshOffer("offer-1");
+    expect(update).toHaveBeenCalledWith({
+      where: { id: "offer-1" },
+      data: expect.objectContaining({ fetchStatus: "SUCCESS", price: 4199 }),
+    });
+    expect(recordPriceSnapshot).toHaveBeenCalledWith(expect.objectContaining({ source: "WORKER" }));
+  });
+
+  it("marks NEVER when no adapter is registered for the merchant", async () => {
+    findUnique.mockResolvedValue(
+      offerRow({
+        merchant: { integrationKey: "UNKNOWN_MERCHANT", defaultTag: null, fetchEnabled: true },
+      }),
+    );
+    await refreshOffer("offer-1");
+    expect(update).toHaveBeenCalledWith({
+      where: { id: "offer-1" },
+      data: expect.objectContaining({ fetchStatus: "NEVER" }),
+    });
+    expect(recordPriceSnapshot).not.toHaveBeenCalled();
   });
 });

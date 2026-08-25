@@ -1,5 +1,5 @@
 import { AffiliateNotice } from "@/components/legal/AffiliateNotice";
-import { AmazonPriceDisclaimer, isAmazonMerchant } from "@/components/legal/AmazonPriceDisclaimer";
+import { OfferLegalNotes } from "@/components/legal/OfferLegalNotes";
 import { ProductGallery } from "@/components/media/ProductGallery";
 import { BuyNowButton } from "@/components/product/BuyNowButton";
 import { FreshnessBadge } from "@/components/product/FreshnessBadge";
@@ -22,8 +22,8 @@ export function ProductHero({ product }: { product: Product }) {
   const current = best ? numericOfferPrice(best.price) : null;
   const off = current != null && original != null ? discountPercent(current, original) : null;
   const score = product.ourScore ? Number(product.ourScore) : null;
-  const showsAmazon = product.offers.some((offer) => isAmazonMerchant(offer.merchant.slug));
   const merchantName = checkout?.merchant.name ?? product.store;
+  const pricedMerchant = (best ?? checkout)?.merchant;
 
   return (
     <div className="product-section grid gap-8 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
@@ -68,9 +68,7 @@ export function ProductHero({ product }: { product: Product }) {
             </>
           )}
           {product.warranty ? <p className="mt-2 text-sm text-ink-muted">{product.warranty}</p> : null}
-          {showsAmazon || isAmazonMerchant(best?.merchant.slug) || isAmazonMerchant(checkout?.merchant.slug) ? (
-            <AmazonPriceDisclaimer className="mt-3 max-w-md text-xs leading-5 text-ink-subtle" />
-          ) : null}
+          <OfferLegalNotes merchant={pricedMerchant} className="mt-3 max-w-md text-xs leading-5 text-ink-subtle" />
         </div>
 
         <div id="product-hero-cta" className="mt-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { OfferLegalNotes } from "@/components/legal/OfferLegalNotes";
 import { ProductImage } from "@/components/media/ProductImage";
 import { BuyNowButton } from "@/components/product/BuyNowButton";
 import { FreshnessBadge } from "@/components/product/FreshnessBadge";
@@ -63,6 +64,7 @@ export function CompareProductSnapshot({ product, notes, isWinner = false }: Com
           available={Boolean(checkout)}
           compact
         />
+        <OfferLegalNotes merchant={(best ?? checkout)?.merchant} className="text-xs leading-5 text-ink-subtle" />
         <Link
           href={`/products/${product.slug}`}
           className="inline-flex w-full items-center justify-center rounded-md border border-line px-3 py-2 text-xs font-semibold text-ink hover:bg-paper"

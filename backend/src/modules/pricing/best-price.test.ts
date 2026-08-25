@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { selectBestOffer, summarizeBestPrice } from "./best-price.js";
+import { selectBestOffer, selectBuyableOffer, selectCheckoutOffer, summarizeBestPrice } from "./best-price.js";
 
 const now = Date.parse("2026-08-24T10:00:00.000Z");
 
@@ -28,6 +28,49 @@ describe("best price", () => {
       now,
     );
     expect(best?.id).toBe("other");
+  });
+
+  it("ignores isPrimary, Amazon, and recommended flags when picking best price", () => {
+    const best = selectBestOffer(
+      [
+        offer({
+          id: "amazon-recommended",
+          price: "5299",
+          isPrimary: true,
+          merchant: { isActive: true, name: "Amazon" },
+        }),
+        offer({
+          id: "cheaper",
+          price: "3999",
+          isPrimary: false,
+          merchant: { isActive: true, name: "Brand shop" },
+        }),
+      ],
+      now,
+    );
+    expect(best?.id).toBe("cheaper");
+  });
+
+  it("uses recommended only as a buyable checkout fallback, never as best price", () => {
+    const staleRecommended = offer({
+      id: "recommended",
+      price: "5299",
+      isPrimary: true,
+      lastCheckedAt: new Date(now - 3 * 24 * 60 * 60 * 1000),
+      lastSuccessfulFetchAt: new Date(now - 3 * 24 * 60 * 60 * 1000),
+      merchant: { isActive: true, name: "Amazon" },
+    });
+    const staleCheaper = offer({
+      id: "cheaper-stale",
+      price: "3999",
+      isPrimary: false,
+      lastCheckedAt: new Date(now - 3 * 24 * 60 * 60 * 1000),
+      lastSuccessfulFetchAt: new Date(now - 3 * 24 * 60 * 60 * 1000),
+      merchant: { isActive: true, name: "Brand shop" },
+    });
+    expect(selectBestOffer([staleRecommended, staleCheaper], now)).toBeNull();
+    expect(selectBuyableOffer([staleRecommended, staleCheaper])?.id).toBe("recommended");
+    expect(selectCheckoutOffer([staleRecommended, staleCheaper], now)?.id).toBe("recommended");
   });
 
   it("skips out-of-stock and stale offers", () => {

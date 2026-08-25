@@ -25,8 +25,8 @@ describe("url safety", () => {
     expect(isAllowedMerchantUrl("https://www.amazon.in/dp/B00", ["amazon.in"])).toBe(true);
   });
 
-  it("falls back to https-only when the allowlist is empty", () => {
-    expect(isAllowedMerchantUrl("https://www.amazon.in/dp/B00", [])).toBe(true);
+  it("rejects merchant URLs when the allowlist is empty", () => {
+    expect(isAllowedMerchantUrl("https://www.amazon.in/dp/B00", [])).toBe(false);
     expect(isAllowedMerchantUrl("https://127.0.0.1/latest", [])).toBe(false);
   });
 });

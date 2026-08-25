@@ -1,3 +1,6 @@
+import { env } from "../../config/env.js";
+import type { AffiliateResolver } from "./types.js";
+
 export function applyAmazonTag(url: string, tag: string | null | undefined): string {
   if (!tag) {
     return url;
@@ -26,3 +29,11 @@ export function isAmazonUrl(url: string): boolean {
     return false;
   }
 }
+
+export const amazonAffiliateResolver: AffiliateResolver = {
+  key: "AMAZON",
+  resolve({ url, merchant }) {
+    return applyAmazonTag(url, merchant.defaultTag ?? env.amazonAssociateTag);
+  },
+};
+

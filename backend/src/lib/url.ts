@@ -61,7 +61,7 @@ export function isAllowedMerchantUrl(value: string, allowlist: string[]): boolea
     return false;
   }
   if (allowlist.length === 0) {
-    return true;
+    return false;
   }
   return hostMatchesAllowlist(hostname, allowlist);
 }

@@ -1,10 +1,41 @@
+import type { IdentifierType, Merchant, ProductSource } from "../../generated/prisma/client.js";
 import { prisma } from "../../config/prisma.js";
 import { AppError } from "../../lib/errors.js";
 import { slugify } from "../../lib/slug.js";
+import { resolveAffiliateUrl } from "../affiliates/resolve.js";
 import { getAdapter } from "../integrations/registry.js";
+import type { DiscoveryCandidate, MerchantAdapter, NormalizedOffer } from "../integrations/types.js";
 import { enqueueJob } from "../jobs/queue.js";
-import type { DiscoveryCandidate, NormalizedOffer } from "../integrations/types.js";
-import { chunkAsins, decideImportAction, parseImportAsins, publishBlockReason, taggedAmazonUrl } from "./import.match.js";
+import { chunkIds, catalogIdentifiersFromItem, decideImportAction, globalCatalogIdentifiers, isMerchantScopedType, matchedProductId, publishBlockReason } from "./import.match.js";
+
+export type ImportProductsInput = {
+  merchantId?: string | null;
+  externalIds?: string[];
+  asins?: string[];
+  categoryId?: string | null;
+};
+
+export type ImportResultRow = {
+  id: string;
+  slug: string;
+  asin: string;
+  externalId: string;
+  status: string;
+};
+
+export type ImportAttachedRow = {
+  productId: string;
+  asin: string;
+  externalId: string;
+  action: "attach-offer" | "refresh-offer";
+};
+
+export type ImportReviewRow = {
+  productIds: string[];
+  asin: string;
+  externalId: string;
+  reason: "ambiguous-match";
+};
 
 async function uniqueSlug(base: string): Promise<string> {
   const root = base || "imported-product";
@@ -16,7 +47,51 @@ async function uniqueSlug(base: string): Promise<string> {
   return slug;
 }
 
-async function amazonMerchant() {
+function asStringArray(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
+}
+
+export function parseProductImportPayload(payload: unknown): ImportProductsInput {
+  const data = payload && typeof payload === "object" ? (payload as Record<string, unknown>) : {};
+  const asins = asStringArray(data.asins);
+  const externalIds = asStringArray(data.externalIds);
+  return {
+    merchantId: typeof data.merchantId === "string" && data.merchantId.trim() ? data.merchantId : undefined,
+    asins: asins.length > 0 ? asins : undefined,
+    externalIds: externalIds.length > 0 ? externalIds : undefined,
+    categoryId: typeof data.categoryId === "string" ? data.categoryId : null,
+  };
+}
+
+function rawImportIds(input: ImportProductsInput): string[] {
+  return [...(input.externalIds ?? []), ...(input.asins ?? [])];
+}
+
+function parseIds(adapter: MerchantAdapter, raw: string[]): string[] {
+  if (adapter.parseExternalIds) {
+    return adapter.parseExternalIds(raw);
+  }
+  return [...new Set(raw.map((value) => value.trim()).filter(Boolean))];
+}
+
+function emptyIdsMessage(adapter: MerchantAdapter): string {
+  return adapter.emptyIdsMessage ?? "Provide at least one product id";
+}
+
+function catalogMeta(adapter: MerchantAdapter, merchantName: string): {
+  identifierType: IdentifierType;
+  source: ProductSource;
+  untitled: (id: string) => string;
+} {
+  return {
+    identifierType: adapter.listingIdentifierType ?? "MERCHANT_ID",
+    source: adapter.productSource ?? "MANUAL",
+    untitled: (id) => `${merchantName} product ${id}`,
+  };
+}
+
+async function defaultImportMerchant() {
+  // V1 has one live adapter. Omitting merchantId keeps Amazon `{ asins }` jobs working.
   const amazon = await prisma.merchant.findFirst({
     where: { OR: [{ integrationKey: "AMAZON_IN" }, { slug: "amazon" }] },
   });
@@ -26,13 +101,31 @@ async function amazonMerchant() {
   return amazon;
 }
 
-async function lookupAsins(ids: string[], partnerTag: string | null): Promise<Map<string, NormalizedOffer>> {
-  const adapter = getAdapter("AMAZON_IN", partnerTag);
+async function resolveImportMerchant(merchantId?: string | null) {
+  if (merchantId) {
+    const merchant = await prisma.merchant.findUnique({ where: { id: merchantId } });
+    if (!merchant) {
+      throw new AppError(400, "VALIDATION_ERROR", "Selected merchant does not exist");
+    }
+    return merchant;
+  }
+  return defaultImportMerchant();
+}
+
+function requireAdapter(merchant: Merchant): MerchantAdapter {
+  const adapter = getAdapter(merchant.integrationKey ?? "", merchant.defaultTag);
+  if (!adapter) {
+    throw new AppError(400, "VALIDATION_ERROR", "This merchant does not support catalog import");
+  }
+  return adapter;
+}
+
+async function lookupExternalIds(adapter: MerchantAdapter, ids: string[]): Promise<Map<string, NormalizedOffer>> {
   const byId = new Map<string, NormalizedOffer>();
-  if (!adapter?.enabled) {
+  if (!adapter.enabled) {
     return byId;
   }
-  for (const batch of chunkAsins(ids, 10)) {
+  for (const batch of chunkIds(ids, 10)) {
     const lookedUp = await adapter.lookup(batch).catch(() => []);
     for (const item of lookedUp) {
       byId.set(item.externalId, item);
@@ -41,20 +134,82 @@ async function lookupAsins(ids: string[], partnerTag: string | null): Promise<Ma
   return byId;
 }
 
-async function ensureAsinIdentifier(productId: string, asin: string, merchantId: string) {
-  const existing = await prisma.productIdentifier.findUnique({
-    where: { type_value: { type: "ASIN", value: asin } },
+async function findGlobalProductId(refs: { type: IdentifierType; value: string }[]): Promise<string | string[] | null> {
+  const globalRefs = globalCatalogIdentifiers(refs);
+  if (globalRefs.length === 0) {
+    return null;
+  }
+  const rows = await prisma.productIdentifier.findMany({
+    where: {
+      OR: globalRefs.map((ref) => ({ type: ref.type, value: ref.value })),
+    },
+    select: { productId: true },
   });
+  const productIds = [...new Set(rows.map((row) => row.productId))];
+  if (productIds.length === 0) {
+    return null;
+  }
+  if (productIds.length > 1) {
+    return productIds;
+  }
+  return productIds[0];
+}
+
+async function findListingIdentifier(type: IdentifierType, value: string, merchantId: string) {
+  if (isMerchantScopedType(type)) {
+    return prisma.productIdentifier.findFirst({
+      where: { type, value, merchantId },
+    });
+  }
+  return prisma.productIdentifier.findFirst({
+    where: { type, value },
+  });
+}
+
+async function ensureIdentifier(productId: string, type: IdentifierType, value: string, merchantId: string) {
+  const existing = isMerchantScopedType(type)
+    ? await prisma.productIdentifier.findFirst({ where: { type, value, merchantId } })
+    : await prisma.productIdentifier.findFirst({ where: { type, value } });
   if (existing) {
     return;
   }
   await prisma.productIdentifier.create({
-    data: { productId, type: "ASIN", value: asin, merchantId },
+    data: { productId, type, value, merchantId },
   });
 }
 
+async function ensureIdentifiers(
+  productId: string,
+  refs: { type: IdentifierType; value: string }[],
+  merchantId: string,
+) {
+  for (const ref of refs) {
+    await ensureIdentifier(productId, ref.type, ref.value, merchantId);
+  }
+}
+
+function offerUrls(adapter: MerchantAdapter, merchant: Merchant, externalId: string, item?: NormalizedOffer | null) {
+  const fallback = adapter.fallbackUrls?.(externalId, merchant.defaultTag);
+  return {
+    productUrl: item?.productUrl ?? fallback?.productUrl ?? null,
+    affiliateUrl: resolveAffiliateUrl(item?.affiliateUrl ?? fallback?.affiliateUrl ?? "", merchant),
+  };
+}
+
+function stockFields(item?: NormalizedOffer | null) {
+  return {
+    inStock: item?.availability !== "OUT_OF_STOCK",
+    availability:
+      item?.availability === "OUT_OF_STOCK"
+        ? ("OUT_OF_STOCK" as const)
+        : item?.availability === "IN_STOCK"
+          ? ("IN_STOCK" as const)
+          : ("UNKNOWN" as const),
+  };
+}
+
 export async function searchCatalog(query: string) {
-  const amazon = await amazonMerchant();
+  const amazon = await defaultImportMerchant();
   const adapter = getAdapter("AMAZON_IN", amazon.defaultTag);
   if (!adapter?.enabled || !adapter.search) {
     return { enabled: false, items: [] as DiscoveryCandidate[] };
@@ -68,121 +223,158 @@ export async function searchCatalog(query: string) {
 }
 
 export async function enqueueProductImport(asins: string[], categoryId?: string | null) {
-  const ids = parseImportAsins(asins);
+  return enqueueImportJob({ asins, categoryId });
+}
+
+export async function enqueueImportJob(input: ImportProductsInput) {
+  const merchant = await resolveImportMerchant(input.merchantId);
+  const adapter = requireAdapter(merchant);
+  const ids = parseIds(adapter, rawImportIds(input));
   if (ids.length === 0) {
-    throw new AppError(400, "VALIDATION_ERROR", "Provide at least one ASIN");
+    throw new AppError(400, "VALIDATION_ERROR", emptyIdsMessage(adapter));
   }
-  return enqueueJob("PRODUCT_IMPORT", { asins: ids, categoryId: categoryId ?? null }, { priority: 5 });
+  return enqueueJob(
+    "PRODUCT_IMPORT",
+    {
+      merchantId: merchant.id,
+      externalIds: ids,
+      ...(adapter.key === "AMAZON_IN" ? { asins: ids } : {}),
+      categoryId: input.categoryId ?? null,
+    },
+    { priority: 5 },
+  );
 }
 
 export async function importAsins(asins: string[], categoryId?: string | null) {
-  const ids = parseImportAsins(asins);
+  return importProducts({ asins, categoryId });
+}
+
+export async function importProducts(input: ImportProductsInput) {
+  const merchant = await resolveImportMerchant(input.merchantId);
+  const adapter = requireAdapter(merchant);
+  const ids = parseIds(adapter, rawImportIds(input));
   if (ids.length === 0) {
-    throw new AppError(400, "VALIDATION_ERROR", "Provide at least one ASIN");
+    throw new AppError(400, "VALIDATION_ERROR", emptyIdsMessage(adapter));
   }
-  if (categoryId) {
-    const category = await prisma.category.findUnique({ where: { id: categoryId }, select: { id: true } });
+  if (input.categoryId) {
+    const category = await prisma.category.findUnique({ where: { id: input.categoryId }, select: { id: true } });
     if (!category) {
       throw new AppError(400, "VALIDATION_ERROR", "Selected category does not exist");
     }
   }
 
-  const amazon = await amazonMerchant();
-  const byId = await lookupAsins(ids, amazon.defaultTag);
-  const created: { id: string; slug: string; asin: string; status: string }[] = [];
-  const attached: { productId: string; asin: string; action: "attach-offer" | "refresh-offer" }[] = [];
+  const meta = catalogMeta(adapter, merchant.name);
+  const byId = await lookupExternalIds(adapter, ids);
+  const created: ImportResultRow[] = [];
+  const attached: ImportAttachedRow[] = [];
+  const review: ImportReviewRow[] = [];
 
-  for (const asin of ids) {
-    const existingIdentifier = await prisma.productIdentifier.findUnique({
-      where: { type_value: { type: "ASIN", value: asin } },
+  for (const externalId of ids) {
+    const item = byId.get(externalId) ?? null;
+    const identifierRefs = catalogIdentifiersFromItem(item, meta.identifierType, externalId);
+    const globalMatch = await findGlobalProductId(identifierRefs);
+    if (Array.isArray(globalMatch)) {
+      review.push({
+        productIds: globalMatch,
+        asin: externalId,
+        externalId,
+        reason: "ambiguous-match",
+      });
+      continue;
+    }
+
+    const listingIdentifier = await findListingIdentifier(meta.identifierType, externalId, merchant.id);
+    const existingOffer = await prisma.offer.findFirst({
+      where: { merchantId: merchant.id, externalId },
     });
-    const offerOnIdentifier = existingIdentifier
-      ? await prisma.offer.findFirst({
-          where: { productId: existingIdentifier.productId, merchantId: amazon.id, externalId: asin },
-        })
-      : null;
-    const existingOffer =
-      offerOnIdentifier ??
-      (await prisma.offer.findFirst({
-        where: { merchantId: amazon.id, externalId: asin },
-      }));
-    const action = decideImportAction({
-      identifierProductId: existingIdentifier?.productId ?? null,
+    const matchInput = {
+      globalProductId: globalMatch,
+      identifierProductId: listingIdentifier?.productId ?? null,
       offerId: existingOffer?.id ?? null,
       offerProductId: existingOffer?.productId ?? null,
-    });
-    const productId = existingIdentifier?.productId ?? existingOffer?.productId ?? null;
+    };
+    const action = decideImportAction(matchInput);
+    const productId = matchedProductId(matchInput);
+
+    if (action === "review") {
+      review.push({
+        productIds: [...new Set([globalMatch, listingIdentifier?.productId, existingOffer?.productId].filter((id): id is string => Boolean(id)))],
+        asin: externalId,
+        externalId,
+        reason: "ambiguous-match",
+      });
+      continue;
+    }
 
     if (action === "refresh-offer" && existingOffer) {
-      await ensureAsinIdentifier(existingOffer.productId, asin, amazon.id);
+      await ensureIdentifiers(existingOffer.productId, identifierRefs, merchant.id);
       await enqueueJob("PRICE_REFRESH", { offerId: existingOffer.id }, { priority: 10 });
-      attached.push({ productId: existingOffer.productId, asin, action });
+      attached.push({ productId: existingOffer.productId, asin: externalId, externalId, action });
       continue;
     }
 
     if (action === "attach-offer" && productId) {
-      await ensureAsinIdentifier(productId, asin, amazon.id);
-      const item = byId.get(asin);
+      await ensureIdentifiers(productId, identifierRefs, merchant.id);
+      const urls = offerUrls(adapter, merchant, externalId, item);
+      const stock = stockFields(item);
       const offer = await prisma.offer.create({
         data: {
           productId,
-          merchantId: amazon.id,
+          merchantId: merchant.id,
           title: item?.title ?? null,
           price: item?.price ?? null,
           originalPrice: item?.originalPrice ?? null,
           currency: item?.currency ?? "INR",
-          externalId: asin,
-          affiliateUrl: item?.affiliateUrl ?? taggedAmazonUrl(asin, amazon.defaultTag),
-          productUrl: item?.productUrl ?? `https://www.amazon.in/dp/${asin}`,
-          inStock: item?.availability !== "OUT_OF_STOCK",
-          availability:
-            item?.availability === "OUT_OF_STOCK"
-              ? "OUT_OF_STOCK"
-              : item?.availability === "IN_STOCK"
-                ? "IN_STOCK"
-                : "UNKNOWN",
+          externalId,
+          affiliateUrl: urls.affiliateUrl,
+          productUrl: urls.productUrl,
+          inStock: stock.inStock,
+          availability: stock.availability,
           nextFetchAt: new Date(),
           fetchStatus: "QUEUED",
         },
       });
       await enqueueJob("PRICE_REFRESH", { offerId: offer.id }, { priority: 10 });
-      attached.push({ productId, asin, action });
+      attached.push({ productId, asin: externalId, externalId, action });
       continue;
     }
 
-    const item = byId.get(asin);
-    const title = item?.title ?? `Amazon product ${asin}`;
+    const title = item?.title ?? meta.untitled(externalId);
     const slug = await uniqueSlug(slugify(title));
+    const urls = offerUrls(adapter, merchant, externalId, item);
+    const stock = stockFields(item);
     const product = await prisma.product.create({
       data: {
         title,
         slug,
-        source: "AMAZON",
-        sourceId: asin,
+        source: meta.source,
+        sourceId: externalId,
         brand: item?.brand ?? null,
         imageUrl: item?.imageUrls[0] ?? null,
         images: item?.imageUrls ?? [],
         status: "DRAFT",
         isActive: false,
-        categoryId: categoryId ?? null,
-        identifiers: { create: { type: "ASIN", value: asin, merchantId: amazon.id } },
+        categoryId: input.categoryId ?? null,
+        identifiers: {
+          create: identifierRefs.map((ref) => ({
+            type: ref.type,
+            value: ref.value,
+            merchantId: merchant.id,
+          })),
+        },
         offers: {
           create: {
-            merchantId: amazon.id,
+            merchantId: merchant.id,
             title,
             price: item?.price ?? null,
             originalPrice: item?.originalPrice ?? null,
             currency: item?.currency ?? "INR",
-            affiliateUrl: item?.affiliateUrl ?? taggedAmazonUrl(asin, amazon.defaultTag),
-            productUrl: item?.productUrl ?? `https://www.amazon.in/dp/${asin}`,
-            externalId: asin,
-            inStock: item?.availability !== "OUT_OF_STOCK",
-            availability:
-              item?.availability === "OUT_OF_STOCK"
-                ? "OUT_OF_STOCK"
-                : item?.availability === "IN_STOCK"
-                  ? "IN_STOCK"
-                  : "UNKNOWN",
+            affiliateUrl: urls.affiliateUrl,
+            productUrl: urls.productUrl,
+            externalId,
+            inStock: stock.inStock,
+            availability: stock.availability,
+            // First offer on a new product is Recommended (editorial first-offer policy), not Amazon-specific.
             isPrimary: true,
             nextFetchAt: new Date(),
             fetchStatus: "QUEUED",
@@ -195,10 +387,16 @@ export async function importAsins(asins: string[], categoryId?: string | null) {
     if (offerId) {
       await enqueueJob("PRICE_REFRESH", { offerId }, { priority: 10 });
     }
-    created.push({ id: product.id, slug: product.slug, asin, status: product.status });
+    created.push({
+      id: product.id,
+      slug: product.slug,
+      asin: externalId,
+      externalId,
+      status: product.status,
+    });
   }
 
-  return { created, attached };
+  return { created, attached, review };
 }
 
 export async function publishProduct(id: string) {

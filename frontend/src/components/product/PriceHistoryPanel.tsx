@@ -55,7 +55,7 @@ export function PriceHistoryPanel({
         <p className="mt-2 text-sm leading-6 text-ink-muted">
           Price tracking will appear after automatic checks begin.
         </p>
-        <p className="mt-2 text-xs text-ink-subtle">Prices recorded on this site. This is not Amazon official price history.</p>
+        <p className="mt-2 text-xs text-ink-subtle">Prices recorded on this site.</p>
       </div>
     );
   }
@@ -101,9 +101,7 @@ export function PriceHistoryPanel({
           <div className={pending ? "opacity-60" : ""}>
             <PriceHistoryChart points={history.points} />
           </div>
-          <p className="mt-2 text-xs text-ink-subtle">
-            Prices recorded on this site. This is not Amazon official price history.
-          </p>
+          <p className="mt-2 text-xs text-ink-subtle">Prices recorded on this site.</p>
           {showAmazonDisclaimer ? <AmazonPriceDisclaimer className="mt-2 text-xs leading-5 text-ink-subtle" /> : null}
         </>
       ) : (

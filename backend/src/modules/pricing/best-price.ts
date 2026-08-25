@@ -6,6 +6,7 @@ export type PricedOffer = {
   originalPrice?: { toString(): string } | number | string | null;
   currency?: string | null;
   inStock: boolean;
+  isPrimary?: boolean;
   lastCheckedAt?: Date | string | null;
   lastSuccessfulFetchAt?: Date | string | null;
   fetchStatus?: string | null;
@@ -55,6 +56,23 @@ export function selectBestOffer<T extends PricedOffer>(offers: T[], now = Date.n
     (a, b) => (toNumber(a.price) ?? Number.POSITIVE_INFINITY) - (toNumber(b.price) ?? Number.POSITIVE_INFINITY),
   );
   return eligible[0] ?? null;
+}
+
+export function selectBuyableOffer<T extends PricedOffer>(offers: T[]): T | null {
+  const buyable = offers.filter((offer) => {
+    if (!offer.inStock) {
+      return false;
+    }
+    if (offer.merchant && offer.merchant.isActive === false) {
+      return false;
+    }
+    return true;
+  });
+  return buyable.find((offer) => offer.isPrimary) ?? buyable[0] ?? null;
+}
+
+export function selectCheckoutOffer<T extends PricedOffer>(offers: T[], now = Date.now()): T | null {
+  return selectBestOffer(offers, now) ?? selectBuyableOffer(offers);
 }
 
 export function summarizeBestPrice<T extends PricedOffer>(

@@ -27,6 +27,7 @@ const offer = {
     kind: "DIRECT" as const,
     network: "DIRECT",
     isActive: true,
+    disclosure: null,
   },
 };
 
@@ -35,6 +36,7 @@ describe("serializeOffer", () => {
     const data = serializeOffer(offer);
     expect(data.affiliateUrl).toBeNull();
     expect(data.available).toBe(true);
+    expect(data.merchant.disclosure).toBeNull();
   });
 
   it("includes affiliate URLs only when asked", () => {

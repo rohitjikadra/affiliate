@@ -42,6 +42,9 @@ export type Merchant = {
   network: string | null;
   defaultTag: string | null;
   disclosure: string | null;
+  integrationKey?: string | null;
+  fetchEnabled?: boolean;
+  hostAllowlist?: string[];
   offerCount?: number;
 };
 
@@ -55,6 +58,7 @@ export type Offer = {
     name: string;
     kind: MerchantKind;
     network: string | null;
+    disclosure: string | null;
   };
   title: string | null;
   price: string | null;
@@ -127,6 +131,7 @@ export type Product = {
   category: Pick<ProductCategory, "id" | "slug" | "name"> | null;
   offers: Offer[];
   primaryOfferId: string | null;
+  recommendedOfferId: string | null;
   clickCount?: number;
   relatedProducts?: Product[];
   relatedGuides?: import("./guide").Guide[];
@@ -184,6 +189,9 @@ export type MerchantPayload = {
   network?: string | null;
   defaultTag?: string | null;
   disclosure?: string | null;
+  integrationKey?: string | null;
+  fetchEnabled?: boolean;
+  hostAllowlist?: string[];
 };
 
 export type OfferPayload = {

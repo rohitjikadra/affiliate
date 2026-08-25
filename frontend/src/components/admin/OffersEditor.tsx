@@ -43,7 +43,7 @@ export function OffersEditor({
     await revalidateShop(["/products", productSlug ? `/products/${productSlug}` : "/products"]);
   }
 
-  async function onPrimary(offer: Offer) {
+  async function onRecommended(offer: Offer) {
     const updated = await updateOffer(productId, offer.id, { isPrimary: true });
     setRows((current) => current.map((row) => ({ ...row, isPrimary: row.id === updated.id })));
     await revalidateShop(["/products", productSlug ? `/products/${productSlug}` : "/products"]);
@@ -58,19 +58,21 @@ export function OffersEditor({
   return (
     <div className="rounded-md border border-neutral-200 p-4">
       <h3 className="text-sm font-semibold text-navy">Merchant offers</h3>
-      <p className="mt-1 text-xs text-neutral-500">Affiliate URLs stay in admin. Public pages only get a tracked /go link.</p>
+      <p className="mt-1 text-xs text-neutral-500">
+        Add any merchant offer. Recommended is editorial. Best price is the cheapest eligible offer. Affiliate URLs stay in admin. Public pages only get a tracked /go link.
+      </p>
       <ul className="mt-3 space-y-2 text-sm">
         {rows.map((offer) => (
           <li key={offer.id} className="flex flex-wrap items-center justify-between gap-2 rounded border border-neutral-100 px-3 py-2">
             <span>
               {offer.merchant.name}
-              {offer.isPrimary ? " · primary" : ""}
+              {offer.isPrimary ? " · recommended" : ""}
               {offer.price ? ` · ${offer.price} ${offer.currency}` : ""}
             </span>
             <span className="flex gap-2">
               {!offer.isPrimary ? (
-                <button type="button" className="text-navy underline" onClick={() => void onPrimary(offer)}>
-                  Make primary
+                <button type="button" className="text-navy underline" onClick={() => void onRecommended(offer)}>
+                  Make recommended
                 </button>
               ) : null}
               <button type="button" className="text-red-700 underline" onClick={() => void onRemove(offer)}>
@@ -81,25 +83,34 @@ export function OffersEditor({
         ))}
       </ul>
       <div className="mt-4 grid gap-3 sm:grid-cols-3">
-        <select value={merchantId} onChange={(event) => setMerchantId(event.target.value)} className="rounded-md border border-neutral-300 px-3 py-2 text-sm">
+        <label className="text-xs font-medium text-neutral-600">
+          Merchant
+          <select value={merchantId} onChange={(event) => setMerchantId(event.target.value)} className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm">
           {merchants.map((merchant) => (
             <option key={merchant.id} value={merchant.id}>
               {merchant.name}
             </option>
           ))}
         </select>
-        <input
+        </label>
+        <label className="text-xs font-medium text-neutral-600">
+          Offer URL
+          <input
           value={affiliateUrl}
           onChange={(event) => setAffiliateUrl(event.target.value)}
-          placeholder="https://merchant/offer"
-          className="rounded-md border border-neutral-300 px-3 py-2 text-sm"
+          placeholder="https://merchant.example/offer"
+          className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
         />
-        <input
+        </label>
+        <label className="text-xs font-medium text-neutral-600">
+          Price
+          <input
           value={price}
           onChange={(event) => setPrice(event.target.value)}
           placeholder="Price"
-          className="rounded-md border border-neutral-300 px-3 py-2 text-sm"
+          className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
         />
+        </label>
       </div>
       <button type="button" onClick={() => void onAdd()} className="mt-3 rounded-md bg-navy px-4 py-2 text-sm font-semibold text-white">
         Add offer

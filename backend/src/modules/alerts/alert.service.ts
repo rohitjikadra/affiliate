@@ -4,6 +4,7 @@ import { AppError } from "../../lib/errors.js";
 import { createToken, hashToken, normalizeEmail } from "../../lib/tokens.js";
 import { sendEmail } from "../../lib/mailer.js";
 import { enqueueJob } from "../jobs/queue.js";
+import { selectBestOffer } from "../pricing/best-price.js";
 import type { AlertType, PriceEventType } from "../../generated/prisma/client.js";
 
 function siteLink(path: string): string {
@@ -44,6 +45,39 @@ export function alertMatches(
     return currentPrice <= Number(alert.targetPrice);
   }
   return false;
+}
+
+export function resolveAlertEvaluation(input: {
+  alertOfferId: string | null;
+  triggeringOfferId: string;
+  triggeringPrice: number | null;
+  triggeringInStock: boolean;
+  bestOfferId: string | null;
+  bestPrice: number | null;
+}): { apply: boolean; currentPrice: number | null } {
+  if (!input.triggeringInStock) {
+    return { apply: false, currentPrice: null };
+  }
+
+  if (input.alertOfferId) {
+    if (input.alertOfferId !== input.triggeringOfferId || input.triggeringPrice == null) {
+      return { apply: false, currentPrice: null };
+    }
+    return { apply: true, currentPrice: input.triggeringPrice };
+  }
+
+  if (!input.bestOfferId || input.bestOfferId !== input.triggeringOfferId || input.bestPrice == null) {
+    return { apply: false, currentPrice: null };
+  }
+  return { apply: true, currentPrice: input.bestPrice };
+}
+
+function numericPrice(value: { toString(): string } | number | string | null | undefined): number | null {
+  if (value == null) {
+    return null;
+  }
+  const parsed = typeof value === "number" ? value : Number(value.toString());
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
 }
 
 export async function createPriceAlert(input: {
@@ -138,7 +172,7 @@ export async function dispatchAlertsForOffer(offerId: string): Promise<number> {
     where: { id: offerId },
     include: { product: { select: { id: true, title: true, slug: true } } },
   });
-  if (!offer || offer.price == null || !offer.inStock) {
+  if (!offer || numericPrice(offer.price) == null || !offer.inStock) {
     return 0;
   }
   const events = await prisma.priceEvent.findMany({
@@ -149,13 +183,31 @@ export async function dispatchAlertsForOffer(offerId: string): Promise<number> {
     return 0;
   }
 
+  const productOffers = await prisma.offer.findMany({
+    where: { productId: offer.productId },
+    include: { merchant: { select: { isActive: true, name: true } } },
+  });
+  const best = selectBestOffer(productOffers);
+  const bestPrice = numericPrice(best?.price ?? null);
+
   const alerts = await prisma.priceAlert.findMany({
     where: { productId: offer.productId, isActive: true, emailVerifiedAt: { not: null } },
   });
-  const currentPrice = Number(offer.price);
+  const triggeringPrice = numericPrice(offer.price);
   let sent = 0;
   for (const alert of alerts) {
-    if (!alertMatches(alert, events, currentPrice)) {
+    const evaluation = resolveAlertEvaluation({
+      alertOfferId: alert.offerId,
+      triggeringOfferId: offer.id,
+      triggeringPrice,
+      triggeringInStock: offer.inStock,
+      bestOfferId: best?.id ?? null,
+      bestPrice,
+    });
+    if (!evaluation.apply || evaluation.currentPrice == null) {
+      continue;
+    }
+    if (!alertMatches(alert, events, evaluation.currentPrice)) {
       continue;
     }
     if (alert.lastTriggeredAt && Date.now() - alert.lastTriggeredAt.getTime() < 12 * 60 * 60 * 1000) {
@@ -165,7 +217,7 @@ export async function dispatchAlertsForOffer(offerId: string): Promise<number> {
     const delivered = await sendEmail({
       to: alert.email,
       subject: `Price update: ${offer.product.title}`,
-      text: `${offer.product.title} is now ₹${currentPrice.toFixed(0)}.\nSee it: ${siteLink(`/products/${offer.product.slug}`)}\n\nUnsubscribe: ${siteLink(`/alerts/unsubscribe?token=${unsubToken}`)}\n\n${PRIVACY}`,
+      text: `${offer.product.title} is now ₹${evaluation.currentPrice.toFixed(0)}.\nSee it: ${siteLink(`/products/${offer.product.slug}`)}\n\nUnsubscribe: ${siteLink(`/alerts/unsubscribe?token=${unsubToken}`)}\n\n${PRIVACY}`,
     });
     if (!delivered) {
       continue;

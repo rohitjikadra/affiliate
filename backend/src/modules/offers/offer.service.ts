@@ -1,6 +1,6 @@
 import { prisma } from "../../config/prisma.js";
 import { AppError } from "../../lib/errors.js";
-import { applyAmazonTag } from "../affiliates/amazon.js";
+import { resolveAffiliateUrl } from "../affiliates/resolve.js";
 import type { CreateOfferInput, UpdateOfferInput } from "./offer.schemas.js";
 import { serializeOffer } from "./offer.serializer.js";
 import { recordPriceSnapshot } from "../pricing/snapshot.js";
@@ -15,6 +15,7 @@ const offerInclude = {
       network: true,
       isActive: true,
       defaultTag: true,
+      disclosure: true,
     },
   },
 } as const;
@@ -75,7 +76,7 @@ export async function createOffer(productId: string, input: CreateOfferInput) {
     await clearPrimary(productId);
   }
 
-  const affiliateUrl = applyAmazonTag(input.affiliateUrl, merchant.defaultTag);
+  const affiliateUrl = resolveAffiliateUrl(input.affiliateUrl, merchant);
 
   const offer = await prisma.offer.create({
     data: {
@@ -123,13 +124,15 @@ export async function updateOffer(productId: string, offerId: string, input: Upd
     await clearPrimary(productId, offerId);
   }
 
-  const merchantTag =
+  const merchantForTag =
     input.merchantId && input.merchantId !== existing.merchantId
-      ? (await prisma.merchant.findUnique({ where: { id: input.merchantId } }))?.defaultTag
-      : existing.merchant.defaultTag;
+      ? await prisma.merchant.findUnique({ where: { id: input.merchantId } })
+      : existing.merchant;
 
   const affiliateUrl =
-    input.affiliateUrl !== undefined ? applyAmazonTag(input.affiliateUrl, merchantTag) : undefined;
+    input.affiliateUrl !== undefined
+      ? resolveAffiliateUrl(input.affiliateUrl, merchantForTag ?? existing.merchant)
+      : undefined;
 
   const offer = await prisma.offer.update({
     where: { id: offerId },

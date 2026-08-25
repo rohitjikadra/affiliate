@@ -6,7 +6,7 @@ import { claimNextJob, completeJob, enqueueDueOfferRefreshes, enqueueSnapshotCom
 import { refreshOffer, revalidatePath } from "./modules/jobs/refresh.js";
 import { compactOldSnapshots } from "./modules/pricing/snapshot.js";
 import { dispatchAlertsForOffer } from "./modules/alerts/alert.service.js";
-import { importAsins } from "./modules/imports/import.service.js";
+import { importProducts, parseProductImportPayload } from "./modules/imports/import.service.js";
 
 const workerId = `worker-${process.pid}-${randomUUID().slice(0, 8)}`;
 
@@ -35,12 +35,8 @@ async function handleJob(type: string, payload: unknown): Promise<void> {
     }
     return;
   }
-  if (type === "PRODUCT_IMPORT" && Array.isArray(data.asins)) {
-    const categoryId = typeof data.categoryId === "string" ? data.categoryId : null;
-    await importAsins(
-      data.asins.filter((value): value is string => typeof value === "string"),
-      categoryId,
-    );
+  if (type === "PRODUCT_IMPORT") {
+    await importProducts(parseProductImportPayload(data));
     return;
   }
   throw new Error(`Unknown job type ${type}`);

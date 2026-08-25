@@ -88,14 +88,11 @@ async function applyFixture(): Promise<void> {
     "example.com",
     "www.example.com",
   ]);
-
-  const cheapMerchant = amazon ?? fixtureShop;
-  const dearMerchant = amazon
-    ? fixtureShop
-    : await upsertMerchant(ALT_SLUG, "Dev Fixture Alt", "https://example.org", ["example.org", "www.example.org"]);
-
-  const cheapUrl = amazon ? "https://www.amazon.in/dp/B08CFJBZRK" : "https://example.com/dev-fixture-mixer";
-  const dearUrl = amazon ? "https://example.com/dev-fixture-mixer" : "https://example.org/dev-fixture-mixer";
+  const altShop = await upsertMerchant(ALT_SLUG, "Dev Fixture Alt", "https://example.org", ["example.org", "www.example.org"]);
+  const bestMerchant = fixtureShop;
+  const recommendedMerchant = amazon ?? altShop;
+  const cheapUrl = "https://example.com/dev-fixture-mixer";
+  const dearUrl = amazon ? "https://www.amazon.in/dp/B08CFJBZRK" : "https://example.org/dev-fixture-mixer";
   const now = new Date();
 
   const product = await prisma.product.upsert({
@@ -140,11 +137,18 @@ async function applyFixture(): Promise<void> {
     },
   });
 
+  await prisma.offer.deleteMany({
+    where: {
+      productId: product.id,
+      externalId: { in: ["DEV-FIXTURE-CHEAP", "DEV-FIXTURE-DEAR"] },
+    },
+  });
+
   const cheapOffer = await prisma.offer.upsert({
     where: {
       productId_merchantId_externalId: {
         productId: product.id,
-        merchantId: cheapMerchant.id,
+        merchantId: bestMerchant.id,
         externalId: "DEV-FIXTURE-CHEAP",
       },
     },
@@ -155,7 +159,7 @@ async function applyFixture(): Promise<void> {
       currency: "INR",
       affiliateUrl: cheapUrl,
       inStock: true,
-      isPrimary: true,
+      isPrimary: false,
       availability: "IN_STOCK",
       fetchStatus: "SUCCESS",
       lastCheckedAt: now,
@@ -163,7 +167,7 @@ async function applyFixture(): Promise<void> {
     },
     create: {
       productId: product.id,
-      merchantId: cheapMerchant.id,
+      merchantId: bestMerchant.id,
       title: "Fixture best offer",
       price: 3499,
       originalPrice: 3999,
@@ -171,7 +175,7 @@ async function applyFixture(): Promise<void> {
       affiliateUrl: cheapUrl,
       externalId: "DEV-FIXTURE-CHEAP",
       inStock: true,
-      isPrimary: true,
+      isPrimary: false,
       availability: "IN_STOCK",
       fetchStatus: "SUCCESS",
       lastCheckedAt: now,
@@ -183,17 +187,17 @@ async function applyFixture(): Promise<void> {
     where: {
       productId_merchantId_externalId: {
         productId: product.id,
-        merchantId: dearMerchant.id,
+        merchantId: recommendedMerchant.id,
         externalId: "DEV-FIXTURE-DEAR",
       },
     },
     update: {
-      title: "Fixture higher offer",
+      title: "Fixture recommended offer",
       price: 3899,
       currency: "INR",
       affiliateUrl: dearUrl,
       inStock: true,
-      isPrimary: false,
+      isPrimary: true,
       availability: "IN_STOCK",
       fetchStatus: "SUCCESS",
       lastCheckedAt: now,
@@ -201,14 +205,14 @@ async function applyFixture(): Promise<void> {
     },
     create: {
       productId: product.id,
-      merchantId: dearMerchant.id,
-      title: "Fixture higher offer",
+      merchantId: recommendedMerchant.id,
+      title: "Fixture recommended offer",
       price: 3899,
       currency: "INR",
       affiliateUrl: dearUrl,
       externalId: "DEV-FIXTURE-DEAR",
       inStock: true,
-      isPrimary: false,
+      isPrimary: true,
       availability: "IN_STOCK",
       fetchStatus: "SUCCESS",
       lastCheckedAt: now,
@@ -259,8 +263,8 @@ async function applyFixture(): Promise<void> {
 
   console.log("Local dev fixture ready (not part of production seed).");
   console.log(`  Product: /products/${PRODUCT_SLUG}`);
-  console.log(`  Cheap offer: ${cheapMerchant.name} ₹3499 (expected best)`);
-  console.log(`  Dear offer: ${dearMerchant.name} ₹3899`);
+  console.log(`  Best price: ${bestMerchant.name} ₹3499 (cheaper, not recommended)`);
+  console.log(`  Recommended: ${recommendedMerchant.name} ₹3899 (editorial, not best price)`);
   console.log(`  Snapshots: ${snapshots.length} ADMIN rows for chart testing`);
   console.log("  Charts stay gated until PRICE_HISTORY_PUBLIC=true on the API process.");
 }

@@ -12,7 +12,12 @@ const TOKEN_URL = "https://api.amazon.co.uk/auth/o2/token";
 const FETCH_TIMEOUT_MS = 8_000;
 
 export function parseAsins(ids: string[]): string[] {
-  return [...new Set(ids.map((id) => id.trim().toUpperCase()).filter((id) => /^[A-Z0-9]{10}$/.test(id)))].slice(0, 10);
+  return [...new Set(ids.map((id) => id.trim().toUpperCase()).filter((id) => /^[A-Z0-9]{10}$/.test(id)))];
+}
+
+export function taggedAmazonUrl(asin: string, partnerTag: string | null | undefined): string {
+  const base = `https://www.amazon.in/dp/${asin}`;
+  return partnerTag ? `${base}?tag=${partnerTag}` : base;
 }
 
 export function parseMoney(value: unknown): number | null {
@@ -80,6 +85,53 @@ async function getAccessToken(): Promise<string> {
   return json.access_token;
 }
 
+function catalogIdStrings(node: unknown): string[] {
+  if (typeof node === "string" && node.trim()) {
+    return [node.trim()];
+  }
+  if (Array.isArray(node)) {
+    return node.flatMap(catalogIdStrings);
+  }
+  if (node && typeof node === "object") {
+    const record = node as Record<string, unknown>;
+    return catalogIdStrings(record.displayValue ?? record.displayValues ?? record.value ?? record.values);
+  }
+  return [];
+}
+
+export function extractAmazonCatalogIds(raw: Record<string, unknown>): { type: "ASIN" | "GTIN" | "EAN" | "UPC"; value: string }[] {
+  const itemInfo = (raw.itemInfo ?? {}) as Record<string, unknown>;
+  const externalIds = (itemInfo.externalIds ?? raw.externalIds ?? {}) as Record<string, unknown>;
+  const mapping: Array<[string, "GTIN" | "EAN" | "UPC"]> = [
+    ["gtin", "GTIN"],
+    ["gtins", "GTIN"],
+    ["gtINs", "GTIN"],
+    ["ean", "EAN"],
+    ["eans", "EAN"],
+    ["eaNs", "EAN"],
+    ["upc", "UPC"],
+    ["upcs", "UPC"],
+    ["upCs", "UPC"],
+  ];
+  const seen = new Set<string>();
+  const result: { type: "ASIN" | "GTIN" | "EAN" | "UPC"; value: string }[] = [];
+  for (const [key, type] of mapping) {
+    for (const rawValue of catalogIdStrings(externalIds[key])) {
+      const value = rawValue.replace(/\D/g, "");
+      if (value.length < 8) {
+        continue;
+      }
+      const token = `${type}:${value}`;
+      if (seen.has(token)) {
+        continue;
+      }
+      seen.add(token);
+      result.push({ type, value });
+    }
+  }
+  return result;
+}
+
 export function normalizeAmazonItem(raw: Record<string, unknown>, partnerTag: string | null): NormalizedOffer | null {
   const asin = String(raw.asin ?? raw.ASIN ?? "").toUpperCase();
   if (!/^[A-Z0-9]{10}$/.test(asin)) {
@@ -123,6 +175,7 @@ export function normalizeAmazonItem(raw: Record<string, unknown>, partnerTag: st
     affiliateUrl: tagged,
     imageUrls: imageUrl ? [imageUrl] : [],
     fetchedAt: new Date(),
+    identifiers: [{ type: "ASIN", value: asin }, ...extractAmazonCatalogIds(raw)],
   };
 }
 
@@ -131,11 +184,14 @@ export function createAmazonAdapter(partnerTag: string | null = env.amazonAssoci
   return {
     key: "AMAZON_IN",
     enabled,
+    listingIdentifierType: "ASIN",
+    productSource: "AMAZON",
+    emptyIdsMessage: "Provide at least one ASIN",
     async lookup(ids) {
       if (!enabled) {
         throw new AdapterDisabledError("AMAZON_IN");
       }
-      const itemIds = parseAsins(ids);
+      const itemIds = parseAsins(ids).slice(0, 10);
       if (itemIds.length === 0) {
         return [];
       }
@@ -170,6 +226,14 @@ export function createAmazonAdapter(partnerTag: string | null = env.amazonAssoci
       return (json.items ?? [])
         .map((item) => normalizeAmazonItem(item, partnerTag))
         .filter((item): item is NormalizedOffer => item != null);
+    },
+    validate: validateNormalizedOffer,
+    parseExternalIds: parseAsins,
+    fallbackUrls(externalId, tag) {
+      return {
+        productUrl: `https://www.amazon.in/dp/${externalId}`,
+        affiliateUrl: taggedAmazonUrl(externalId, tag),
+      };
     },
     async search(query) {
       if (!enabled) {

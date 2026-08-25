@@ -46,7 +46,7 @@ const amazonOffer = {
   externalId: "B00TEST",
   inStock: true,
   isPrimary: true,
-  lastCheckedAt: new Date("2026-08-01T00:00:00.000Z"),
+  lastCheckedAt: null,
   lastSuccessfulFetchAt: null,
   fetchStatus: "NEVER",
   availability: "IN_STOCK",
@@ -60,6 +60,7 @@ const amazonOffer = {
     kind: "MARKETPLACE" as const,
     network: "AMAZON",
     isActive: true,
+    disclosure: "As an Amazon Associate we earn from qualifying purchases.",
   },
 };
 
@@ -86,14 +87,18 @@ describe("serializeProduct", () => {
     expect(data.affiliateUrl).toBeNull();
     expect(data.offers[0]?.affiliateUrl).toBeNull();
     expect(data.store).toBe("Amazon");
+    expect(data.offers[0]?.merchant.disclosure).toContain("Amazon Associate");
     expect(data.price).toBe("12.00");
-    expect(data.lastCheckedAt).toBe("2026-08-01T00:00:00.000Z");
+    expect(data.lastCheckedAt).toBeNull();
+    expect(data.bestOfferId).toBe("o1");
     expect(data.available).toBe(true);
   });
 
   it("is unavailable without a live offer even if a legacy product URL exists", () => {
     const data = serializeProduct({ ...product, offers: [] });
     expect(data.available).toBe(false);
+    expect(data.store).toBe("");
+    expect(data.price).toBeNull();
   });
 
   it("includes affiliate URLs only when asked and there is no offer", () => {
@@ -126,5 +131,51 @@ describe("serializeProduct", () => {
     });
     expect(data.images).toEqual(["https://example.com/cover.jpg"]);
     expect(data.imageUrl).toBe("https://example.com/cover.jpg");
+  });
+
+  it("uses a cheaper non-primary offer as best price and store, not the recommended Amazon offer", () => {
+    const brandOffer = {
+      ...amazonOffer,
+      id: "o2",
+      merchantId: "m2",
+      isPrimary: false,
+      price: { toString: () => "9.00" } as never,
+      merchant: {
+        id: "m2",
+        slug: "brand-shop",
+        name: "Brand shop",
+        kind: "DIRECT" as const,
+        network: "DIRECT",
+        isActive: true,
+        disclosure: "Local development merchant. Not a real storefront.",
+      },
+    };
+    const data = serializeProduct({
+      ...product,
+      offers: [amazonOffer, brandOffer],
+    });
+    expect(data.price).toBe("9.00");
+    expect(data.store).toBe("Brand shop");
+    expect(data.bestOfferId).toBe("o2");
+    expect(data.primaryOfferId).toBe("o1");
+    expect(data.recommendedOfferId).toBe("o1");
+    expect(data.offers.find((offer) => offer.id === "o2")?.merchant.disclosure).toBe(
+      "Local development merchant. Not a real storefront.",
+    );
+  });
+
+  it("does not treat a recommended offer as best price when no eligible best exists", () => {
+    const staleRecommended = {
+      ...amazonOffer,
+      lastCheckedAt: new Date("2020-01-01T00:00:00.000Z"),
+      lastSuccessfulFetchAt: new Date("2020-01-01T00:00:00.000Z"),
+      fetchStatus: "SUCCESS" as const,
+    };
+    const data = serializeProduct({ ...product, offers: [staleRecommended] });
+    expect(data.price).toBeNull();
+    expect(data.bestOfferId).toBeNull();
+    expect(data.store).toBe("");
+    expect(data.recommendedOfferId).toBe("o1");
+    expect(data.available).toBe(true);
   });
 });

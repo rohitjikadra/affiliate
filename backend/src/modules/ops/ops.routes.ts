@@ -10,7 +10,7 @@ import {
   refreshOfferNow,
   retryJobById,
 } from "./ops.service.js";
-import { importAsins, publishProduct, searchCatalog } from "../imports/import.service.js";
+import { importProducts, publishProduct, searchCatalog } from "../imports/import.service.js";
 import { listAlerts } from "../alerts/alert.service.js";
 
 export const opsRouter = Router();
@@ -61,14 +61,34 @@ opsRouter.get(
 opsRouter.post(
   "/products/import",
   validateBody(
-    z.object({
-      asins: z.array(z.string()).min(1).max(20),
-      categoryId: z.string().min(1).optional(),
-    }),
+    z
+      .object({
+        asins: z.array(z.string()).max(20).optional(),
+        externalIds: z.array(z.string()).max(20).optional(),
+        merchantId: z.string().min(1).optional(),
+        categoryId: z.string().min(1).optional(),
+      })
+      .superRefine((body, ctx) => {
+        if ((body.asins?.length ?? 0) + (body.externalIds?.length ?? 0) < 1) {
+          ctx.addIssue({ code: "custom", message: "Provide at least one ASIN or external id" });
+        }
+      }),
   ),
   async (req, res) => {
-    const body = req.body as { asins: string[]; categoryId?: string };
-    res.status(201).json({ data: await importAsins(body.asins, body.categoryId) });
+    const body = req.body as {
+      asins?: string[];
+      externalIds?: string[];
+      merchantId?: string;
+      categoryId?: string;
+    };
+    res.status(201).json({
+      data: await importProducts({
+        asins: body.asins,
+        externalIds: body.externalIds,
+        merchantId: body.merchantId,
+        categoryId: body.categoryId,
+      }),
+    });
   },
 );
 

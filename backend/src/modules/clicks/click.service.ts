@@ -2,7 +2,8 @@ import type { ProductSource } from "../../generated/prisma/client.js";
 import { prisma } from "../../config/prisma.js";
 import { AppError } from "../../lib/errors.js";
 import { isAllowedMerchantUrl, isSafeHttpUrl, truncate } from "../../lib/url.js";
-import { applyAmazonTag } from "../affiliates/amazon.js";
+import { resolveAffiliateUrl } from "../affiliates/resolve.js";
+import { selectCheckoutOffer } from "../pricing/best-price.js";
 
 export type ClickContext = {
   referrer?: string;
@@ -15,14 +16,8 @@ export type ClickContext = {
   device?: string;
 };
 
-function mapSource(network: string | null | undefined, fallback: ProductSource): ProductSource {
-  if (network === "AMAZON") {
-    return "AMAZON";
-  }
-  if (network === "FLIPKART") {
-    return "FLIPKART";
-  }
-  return fallback;
+function clickSourceFromMerchant(network: string | null | undefined): ProductSource {
+  return network === "AMAZON" ? "AMAZON" : "MANUAL";
 }
 
 async function writeClick(input: {
@@ -60,7 +55,6 @@ export async function recordOfferClick(offerId: string, context: ClickContext) {
           id: true,
           isActive: true,
           status: true,
-          source: true,
         },
       },
     },
@@ -70,7 +64,7 @@ export async function recordOfferClick(offerId: string, context: ClickContext) {
     throw new AppError(404, "NOT_FOUND", "This offer is not available.");
   }
 
-  const destination = applyAmazonTag(offer.affiliateUrl, offer.merchant.defaultTag);
+  const destination = resolveAffiliateUrl(offer.affiliateUrl, offer.merchant);
   if (!isAllowedMerchantUrl(destination, offer.merchant.hostAllowlist ?? [])) {
     throw new AppError(409, "UNAVAILABLE", "This offer is currently unavailable.");
   }
@@ -79,7 +73,7 @@ export async function recordOfferClick(offerId: string, context: ClickContext) {
     productId: offer.productId,
     offerId: offer.id,
     merchantId: offer.merchantId,
-    source: mapSource(offer.merchant.network, offer.product.source),
+    source: clickSourceFromMerchant(offer.merchant.network),
     context,
   });
 
@@ -93,9 +87,7 @@ export async function recordProductClick(slug: string, context: ClickContext) {
     },
     include: {
       offers: {
-        where: { inStock: true, merchant: { isActive: true } },
         include: { merchant: true },
-        orderBy: [{ isPrimary: "desc" }, { updatedAt: "desc" }],
       },
     },
   });
@@ -104,11 +96,12 @@ export async function recordProductClick(slug: string, context: ClickContext) {
     throw new AppError(404, "NOT_FOUND", "This product is not available.");
   }
 
-  const primary = product.offers[0];
-  if (primary) {
-    return recordOfferClick(primary.id, context);
+  const checkout = selectCheckoutOffer(product.offers);
+  if (checkout) {
+    return recordOfferClick(checkout.id, context);
   }
 
+  // Legacy POST /products/:slug/go: keep Product.affiliateUrl when the product has no offers.
   const destination = isSafeHttpUrl(product.affiliateUrl) ? product.affiliateUrl : null;
   if (!destination) {
     throw new AppError(409, "UNAVAILABLE", "This offer is currently unavailable.");

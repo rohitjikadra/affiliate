@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Fraunces, Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { SITE_NAME, SITE_TAGLINE, siteUrl } from "@/lib/site";
+import { SITE_HEADLINE, SITE_NAME, SITE_TAGLINE, siteUrl } from "@/lib/site";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -21,7 +21,7 @@ const display = Fraunces({
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl()),
   title: {
-    default: `${SITE_NAME} — Kitchen appliances for Indian homes`,
+    default: `${SITE_NAME} — ${SITE_HEADLINE}`,
     template: `%s — ${SITE_NAME}`,
   },
   description: SITE_TAGLINE,

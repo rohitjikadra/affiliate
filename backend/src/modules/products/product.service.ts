@@ -39,6 +39,7 @@ export const productInclude = {
           kind: true,
           network: true,
           isActive: true,
+          disclosure: true,
         },
       },
     },
@@ -289,6 +290,7 @@ export async function createProduct(input: CreateProductInput) {
             ? Prisma.JsonNull
             : input.scoreBreakdown,
       ...imageFields(input),
+      // Legacy Product commerce columns: CMS still writes them. Live price/URL come from Offers.
       price: input.price ?? null,
       originalPrice: input.originalPrice,
       ourScore: input.ourScore,

@@ -1,3 +1,8 @@
+export type CatalogIdentifier = {
+  type: "ASIN" | "GTIN" | "EAN" | "UPC" | "MPN" | "SKU" | "MERCHANT_ID";
+  value: string;
+};
+
 export type NormalizedOffer = {
   externalId: string;
   title: string | null;
@@ -10,6 +15,8 @@ export type NormalizedOffer = {
   affiliateUrl: string | null;
   imageUrls: string[];
   fetchedAt: Date;
+  metadata?: Record<string, unknown>;
+  identifiers?: CatalogIdentifier[];
 };
 
 export type DiscoveryCandidate = {
@@ -24,8 +31,17 @@ export type DiscoveryCandidate = {
 export interface MerchantAdapter {
   key: string;
   enabled: boolean;
+  listingIdentifierType?: CatalogIdentifier["type"];
+  productSource?: "MANUAL" | "AMAZON" | "FLIPKART";
+  emptyIdsMessage?: string;
   lookup(ids: string[]): Promise<NormalizedOffer[]>;
   search?(query: string): Promise<DiscoveryCandidate[]>;
+  validate(item: NormalizedOffer): string | null;
+  parseExternalIds?(raw: string[]): string[];
+  fallbackUrls?(
+    externalId: string,
+    tag?: string | null,
+  ): { productUrl: string | null; affiliateUrl: string | null };
 }
 
 export class AdapterDisabledError extends Error {

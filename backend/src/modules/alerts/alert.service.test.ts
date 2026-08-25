@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createAlertSchema } from "./alert.routes.js";
-import { alertMatches } from "./alert.service.js";
+import { alertMatches, resolveAlertEvaluation } from "./alert.service.js";
 
 describe("createAlertSchema", () => {
   it("requires a target price for TARGET_PRICE", () => {
@@ -63,5 +63,56 @@ describe("alertMatches", () => {
     expect(alertMatches(alert, [{ type: "NEW_LOW", percent: -6 }], 3499)).toBe(true);
     expect(alertMatches(alert, [{ type: "RETURN_TO_LOW", percent: -6 }], 3499)).toBe(false);
     expect(alertMatches(alert, [{ type: "DROP", percent: -20 }], 3499)).toBe(false);
+  });
+});
+
+describe("resolveAlertEvaluation", () => {
+  it("uses the product best eligible price for product-level alerts", () => {
+    expect(
+      resolveAlertEvaluation({
+        alertOfferId: null,
+        triggeringOfferId: "best",
+        triggeringPrice: 3499,
+        triggeringInStock: true,
+        bestOfferId: "best",
+        bestPrice: 3499,
+      }),
+    ).toEqual({ apply: true, currentPrice: 3499 });
+  });
+
+  it("does not fire a product-level alert when a non-best offer changes", () => {
+    expect(
+      resolveAlertEvaluation({
+        alertOfferId: null,
+        triggeringOfferId: "expensive",
+        triggeringPrice: 1999,
+        triggeringInStock: true,
+        bestOfferId: "best",
+        bestPrice: 3499,
+      }),
+    ).toEqual({ apply: false, currentPrice: null });
+  });
+
+  it("keeps offer-scoped alerts tied to that merchant offer", () => {
+    expect(
+      resolveAlertEvaluation({
+        alertOfferId: "expensive",
+        triggeringOfferId: "expensive",
+        triggeringPrice: 1999,
+        triggeringInStock: true,
+        bestOfferId: "best",
+        bestPrice: 3499,
+      }),
+    ).toEqual({ apply: true, currentPrice: 1999 });
+    expect(
+      resolveAlertEvaluation({
+        alertOfferId: "expensive",
+        triggeringOfferId: "best",
+        triggeringPrice: 3499,
+        triggeringInStock: true,
+        bestOfferId: "best",
+        bestPrice: 3499,
+      }),
+    ).toEqual({ apply: false, currentPrice: null });
   });
 });

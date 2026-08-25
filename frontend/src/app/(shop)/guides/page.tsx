@@ -2,6 +2,7 @@ import Link from "next/link";
 import { CatalogUnavailable } from "@/components/catalog/CatalogUnavailable";
 import { listGuides } from "@/lib/api";
 import { publicMetadata } from "@/lib/seo";
+import { SITE_GUIDES_BLURB } from "@/lib/site";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = publicMetadata({
@@ -21,7 +22,7 @@ export default async function GuidesPage() {
         <div className="rounded-md bg-white px-4 py-5 sm:px-6">
           <h1 className="text-2xl font-bold text-navy">Buying guides</h1>
           <p className="mt-1 text-sm text-neutral-600">
-            Kitchen appliance recommendations for Indian homes.
+            {SITE_GUIDES_BLURB}
           </p>
         </div>
 

@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  extractAmazonCatalogIds,
   createAmazonAdapter,
   normalizeAmazonItem,
   parseAsins,
   parseAvailability,
   parseMoney,
+  taggedAmazonUrl,
   validateNormalizedOffer,
 } from "./amazon.js";
 import { AdapterDisabledError, type NormalizedOffer } from "./types.js";
@@ -28,6 +30,18 @@ function offer(partial: Partial<NormalizedOffer> = {}): NormalizedOffer {
 describe("amazon adapter helpers", () => {
   it("keeps only 10-character ASINs", () => {
     expect(parseAsins(["b08cfjbzrk", "nope", " B00HVXS7WC ", "B00HVXS7WC"])).toEqual(["B08CFJBZRK", "B00HVXS7WC"]);
+    const eleven = Array.from({ length: 11 }, (_, index) => `B00000000${index}`.slice(-10).toUpperCase());
+    expect(parseAsins(eleven)).toHaveLength(11);
+  });
+
+  it("builds tagged Amazon URLs without scraping", () => {
+    expect(taggedAmazonUrl("B08CFJBZRK", null)).toBe("https://www.amazon.in/dp/B08CFJBZRK");
+    expect(taggedAmazonUrl("B08CFJBZRK", "tag-21")).toBe("https://www.amazon.in/dp/B08CFJBZRK?tag=tag-21");
+    const adapter = createAmazonAdapter("tag-21");
+    expect(adapter.fallbackUrls?.("B08CFJBZRK", "tag-21")).toEqual({
+      productUrl: "https://www.amazon.in/dp/B08CFJBZRK",
+      affiliateUrl: "https://www.amazon.in/dp/B08CFJBZRK?tag=tag-21",
+    });
   });
 
   it("parses INR money and rejects empty amounts", () => {
@@ -49,6 +63,9 @@ describe("amazon adapter helpers", () => {
     expect(validateNormalizedOffer(offer({ externalId: "SHORT" }))).toBe("Invalid ASIN");
     expect(validateNormalizedOffer(offer({ currency: "USD" }))).toBe("Currency must be INR");
     expect(validateNormalizedOffer(offer())).toBeNull();
+    const adapter = createAmazonAdapter("tag-21");
+    expect(adapter.validate(offer({ externalId: "SHORT" }))).toBe("Invalid ASIN");
+    expect(adapter.parseExternalIds?.(["sku-1", "B08CFJBZRK"])).toEqual(["B08CFJBZRK"]);
   });
 
   it("normalizes a Creators-style item without keeping the raw dump", () => {
@@ -74,6 +91,18 @@ describe("amazon adapter helpers", () => {
       productUrl: "https://www.amazon.in/dp/B08CFJBZRK",
     });
     expect(item?.affiliateUrl).toContain("tag=tag-21");
+    expect(item?.identifiers).toEqual([{ type: "ASIN", value: "B08CFJBZRK" }]);
+  });
+
+  it("extracts GTIN/EAN/UPC catalog ids from Creators-style payloads", () => {
+    expect(
+      extractAmazonCatalogIds({
+        itemInfo: { externalIds: { eaNs: { displayValue: "8901234567890" }, upCs: ["012345678905"] } },
+      }),
+    ).toEqual([
+      { type: "EAN", value: "8901234567890" },
+      { type: "UPC", value: "012345678905" },
+    ]);
   });
 
   it("is a disabled stub when Creators credentials are missing", async () => {

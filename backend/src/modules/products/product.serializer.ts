@@ -1,13 +1,7 @@
-import type { Product, ProductSource } from "../../generated/prisma/client.js";
+import type { Product } from "../../generated/prisma/client.js";
 import { freshnessLabel } from "../../lib/freshness.js";
 import { serializeOffer } from "../offers/offer.serializer.js";
 import { summarizeBestPrice } from "../pricing/best-price.js";
-
-const storeLabels: Record<ProductSource, string> = {
-  MANUAL: "My Pasand Shop",
-  AMAZON: "Amazon",
-  FLIPKART: "Flipkart",
-};
 
 type SerializeOptions = {
   includeAffiliateUrl?: boolean;
@@ -120,10 +114,8 @@ export function serializeProduct(product: LooseProduct, options: SerializeOption
   const includeAffiliateUrl = options.includeAffiliateUrl ?? false;
   const offers = (product.offers ?? []).map((offer) => serializeOffer(offer, { includeAffiliateUrl }));
   const best = summarizeBestPrice(product.offers ?? []);
-  const primaryOffer = offers.find((offer) => offer.isPrimary) ?? offers[0] ?? null;
-  const bestOffer = offers.find((offer) => offer.id === best.offerId) ?? primaryOffer;
+  const recommendedOffer = offers.find((offer) => offer.isPrimary) ?? null;
   const hasLiveOffer = offers.some((offer) => offer.available);
-  const productPrice = product.price != null ? product.price.toString() : null;
   const images = parseImageUrls(product.images, product.imageUrl);
   const checkedAt = best.checkedAt;
 
@@ -147,18 +139,19 @@ export function serializeProduct(product: LooseProduct, options: SerializeOption
     scoreBreakdown: parseScoreBreakdown(product.scoreBreakdown),
     images,
     imageUrl: images[0] ?? null,
-    price: best.price ?? bestOffer?.price ?? productPrice,
-    originalPrice: best.originalPrice ?? bestOffer?.originalPrice ?? product.originalPrice?.toString() ?? null,
+    // Public price/store come from the best Offer/Merchant, not Product.price or Product.source.
+    price: best.price,
+    originalPrice: best.originalPrice,
     ourScore: editorialScore(product),
-    currency: best.currency ?? bestOffer?.currency ?? product.currency,
-    lastCheckedAt: checkedAt ?? bestOffer?.lastCheckedAt ?? null,
+    currency: best.currency ?? product.currency,
+    lastCheckedAt: checkedAt,
     freshness: best.freshness,
     freshnessLabel: freshnessLabel(checkedAt),
     bestOfferId: best.offerId,
     offerCount: best.offerCount,
-    affiliateUrl: includeAffiliateUrl && !primaryOffer ? product.affiliateUrl : null,
+    affiliateUrl: includeAffiliateUrl && offers.length === 0 ? product.affiliateUrl : null,
     source: product.source,
-    store: best.merchantName ?? bestOffer?.merchant.name ?? storeLabels[product.source],
+    store: best.merchantName ?? "",
     sourceId: includeAffiliateUrl ? product.sourceId : null,
     seoTitle: product.seoTitle,
     seoDescription: product.seoDescription,
@@ -169,7 +162,8 @@ export function serializeProduct(product: LooseProduct, options: SerializeOption
     categoryId: product.categoryId,
     category: product.category ?? null,
     offers,
-    primaryOfferId: primaryOffer?.id ?? null,
+    primaryOfferId: recommendedOffer?.id ?? null,
+    recommendedOfferId: recommendedOffer?.id ?? null,
     createdAt: product.createdAt.toISOString(),
     updatedAt: product.updatedAt.toISOString(),
   };

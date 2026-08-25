@@ -3,7 +3,7 @@ import { isSafeHttpUrl } from "../../lib/url.js";
 import { freshnessLabel, freshnessLevel } from "../../lib/freshness.js";
 
 type OfferWithMerchant = Offer & {
-  merchant: Pick<Merchant, "id" | "slug" | "name" | "kind" | "network" | "isActive">;
+  merchant: Pick<Merchant, "id" | "slug" | "name" | "kind" | "network" | "isActive" | "disclosure">;
 };
 
 type SerializeOfferOptions = {
@@ -24,6 +24,7 @@ export function serializeOffer(offer: OfferWithMerchant, options: SerializeOffer
       name: offer.merchant.name,
       kind: offer.merchant.kind,
       network: offer.merchant.network,
+      disclosure: offer.merchant.disclosure,
     },
     title: offer.title,
     price: offer.price?.toString() ?? null,

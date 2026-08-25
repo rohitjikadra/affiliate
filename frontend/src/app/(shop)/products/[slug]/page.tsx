@@ -72,7 +72,6 @@ export default async function ProductPage({ params }: ProductPageProps) {
       { name: product.title, path: `/products/${product.slug}` },
     ];
     const faq = faqJsonLd(product.faq);
-    const showsAmazon = product.offers.some((offer) => isAmazonMerchant(offer.merchant.slug));
 
     return (
       <article className="shop-wrap py-6 pb-28 sm:pb-32">
@@ -93,7 +92,10 @@ export default async function ProductPage({ params }: ProductPageProps) {
         <ProductHero product={product} />
         <QuickSpecs specs={product.specs} />
         <OfferComparison product={product} />
-        <PriceHistorySection productSlug={product.slug} showAmazonDisclaimer={showsAmazon} />
+        <PriceHistorySection
+          productSlug={product.slug}
+          showAmazonDisclaimer={product.offers.some((offer) => isAmazonMerchant(offer.merchant))}
+        />
         <AlertForm productId={product.id} currentPrice={price} />
         <AnalysisSection description={product.description} />
         <ProsCons pros={pros} cons={cons} />

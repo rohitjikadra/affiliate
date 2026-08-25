@@ -5,6 +5,8 @@ import { AppError } from "../../lib/errors.js";
 const RANGES: Record<string, number> = { "7d": 7, "30d": 30, "90d": 90 };
 const MAX_CHART_POINTS = 90;
 const SITE_HISTORY_LABEL = "Prices recorded on this site";
+// Public chart is product-level daily lowest across that product's offers, gated by PRICE_HISTORY_PUBLIC.
+// offerId is kept on points for ops; the public payload is not a per-merchant Amazon PAC history.
 
 export type HistoryPoint = {
   offerId: string;

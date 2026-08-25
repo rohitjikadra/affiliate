@@ -33,7 +33,7 @@ export default async function AdminProductsPage({ searchParams }: AdminProductsP
               Add product
             </Link>
             <Link href="/admin/import" className="text-sm font-semibold text-navy hover:underline">
-              Import ASINs
+              Amazon ASIN Import
             </Link>
           </div>
         </div>

@@ -70,7 +70,7 @@ Browser
 | **Product** | Editorial canonical item. Public if `isActive && status === PUBLISHED`. |
 | **Offer** | One merchant listing. Holds `price`, `originalPrice`, `currency` (INR), `affiliateUrl`, `productUrl`, `externalId` (ASIN), stock/availability, fetch fields. |
 | **Merchant** | Amazon etc. `integrationKey` e.g. `AMAZON_IN`, `defaultTag`, `hostAllowlist`, `fetchEnabled`. |
-| **ProductIdentifier** | Global IDs. Unique `(type, value)`. Types: `ASIN, GTIN, EAN, UPC, MPN, SKU, MERCHANT_ID`. |
+| **ProductIdentifier** | Exact-match IDs. Partial unique in SQL: `ASIN/GTIN/EAN/UPC` globally unique; `SKU/MERCHANT_ID/MPN` unique per merchant. Types: `ASIN, GTIN, EAN, UPC, MPN, SKU, MERCHANT_ID`. |
 | **Category** | e.g. seed `kitchen-appliances`. |
 | **Guide** | `ARTICLE` → `/guides/[slug]`; `BEST_OF` → `/best/[slug]`. `published` flag. |
 | **GuideProduct** | Ranked products on a guide. Badges: `BEST_OVERALL, BEST_BUDGET, BEST_PREMIUM, BEST_FOR_BEGINNERS, RELATED`. |
@@ -94,7 +94,7 @@ Legacy (do not treat as source of truth): `price, originalPrice, affiliateUrl, s
 ### Offer unique
 
 `@@unique([productId, merchantId, externalId])`  
-There is **no** global unique `(merchantId, externalId)` in the current schema (a plan item was skipped). Matching uses identifiers first.
+There is **no** Prisma unique on `(merchantId, externalId)` because `externalId` defaults to `""`. SQL has a partial unique `offers_merchant_id_external_id_uidx` on `(merchant_id, external_id) WHERE external_id <> ''`. Import matching is exact-identifier first (see Import).
 
 ### Offer fetch
 
@@ -106,7 +106,11 @@ Backoff: success next fetch **45–60 min** random. Failure exponential from 5 m
 
 ## 5. Pricing / freshness rules
 
-**Best price** (`selectBestOffer`): cheapest **in-stock** offer with a valid price &gt; 0, merchant active, and checked within **24 hours** (or `fetchStatus NEVER` / never checked still eligible so manual seed offers work). Not `isPrimary`.
+**Best price** (`selectBestOffer`): cheapest **in-stock** offer with a valid price &gt; 0, merchant active, and checked within **24 hours** (or `fetchStatus NEVER` / never checked still eligible so manual seed offers work). Does **not** use `isPrimary`, Amazon, or commission.
+
+**Recommended** (`isPrimary`): editorial flag only. Admin label is “Recommended”. First offer on a newly created product is recommended (first-offer policy), including Amazon imports — not because the merchant is Amazon. Attaching another merchant’s offer does not set Recommended.
+
+**Buyable / checkout fallback** (`selectCheckoutOffer`): use Best Price when one exists; otherwise the first in-stock active-merchant offer (prefer Recommended). Never labeled “Best Price”.
 
 **Freshness** from `lastSuccessfulFetchAt ?? lastCheckedAt`:
 
@@ -133,9 +137,10 @@ ISR 120s on shop routes.
 
 ### Header / footer
 
-- Nav: Products, Guides, Compare, Kitchen (`/categories/kitchen-appliances`)
+- Nav: Products, Guides, Compare, Kitchen (`/categories/${SITE_CATEGORY_SLUG}`) — copy from `frontend/src/lib/site.ts`
 - Header search → `/products?q=`
-- Amazon Associates disclosure strip + link to `/affiliate-disclosure`
+- Generic affiliate disclosure strip + link to `/affiliate-disclosure` (not Amazon Associates by default)
+- Amazon Associates wording appears on `/affiliate-disclosure` and next to Amazon offers only
 - Footer: products, guides, compare, best, kitchen, about, contact, privacy, affiliate disclosure
 
 ### Routes
@@ -155,7 +160,7 @@ ISR 120s on shop routes.
 | `/about` | About copy |
 | `/contact` | Mailto form if `NEXT_PUBLIC_CONTACT_EMAIL` set; otherwise message to set email |
 | `/privacy` | Privacy including **price-alert email** (store email, purpose, unsubscribe, no extra PII, DPDP-oriented) |
-| `/affiliate-disclosure` | Amazon Associates disclosure |
+| `/affiliate-disclosure` | Merchant-neutral affiliate disclosure; Amazon Associates section for Amazon |
 | `/alerts/verify?token=` | Confirm alert email |
 | `/alerts/unsubscribe?token=` | Unsubscribe |
 | `/sitemap.xml` | Products, categories, guides (article vs best), comparisons, plus `/`, `/products`, `/guides`, `/best`, `/compare`, about, disclosure |
@@ -165,12 +170,15 @@ ISR 120s on shop routes.
 
 - `BuyNowButton` uses `bestOfferId` or `primaryOfferId`, then `GET /go/{offerId}` (rewrite to API).
 - Sticky CTA on PDP mobile.
-- `AffiliateNotice` near CTAs.
-- `AmazonPriceDisclaimer` when merchant slug is Amazon.
+- `AffiliateNotice` near CTAs (generic commission wording).
+- `AmazonPriceDisclaimer` and Amazon Associates wording only next to Amazon offers.
+- `Merchant.disclosure` rendered on PDP / offer / comparison / best-of surfaces when set.
 
 ### Price alerts (PDP)
 
 - Email + type: target price / percent drop / new low.
+- Product-level alerts evaluate the product’s current **best eligible price**. A non-best merchant price change does not fire them.
+- Optional `offerId` is kept for future merchant-specific alerts (those still use that offer’s price/events).
 - Rate limit: **8 / 15 min / IP**.
 - Create always succeeds structurally; email send skipped if `RESEND_API_KEY` / `ALERT_FROM_EMAIL` missing (log `email_skipped`).
 - Must **verify** via emailed link before dispatch.
@@ -181,7 +189,7 @@ ISR 120s on shop routes.
 
 - `GET /api/products/:id/price-history?range=7d\|30d\|90d`
 - If `PRICE_HISTORY_PUBLIC=false`: `{ enabled: false, points: [], stats: null }` and UI empty state (“We’ll chart prices after…” / gated).
-- If true: daily **lowest** point, downsample max **90** points, label **“Prices recorded on this site”** — never “Amazon official history”.
+- If true: daily **lowest** point across that product’s offers (not a public per-merchant chart), downsample max **90** points, label **“Prices recorded on this site”** — never Amazon official history.
 - Do not invent seed history.
 
 ### Search
@@ -212,16 +220,20 @@ API 308 + `redirectSlug` → Next `handleMoved` redirects to new slug under the 
 - Create/edit form: all editorial fields including **Who should avoid**, catalog status select, featured, active, images (newline URLs, max 12), specs, score breakdown, Amazon tag warning if URL missing tag.
 - Manual create default status **PUBLISHED**.
 - Edit: **Publish to shop** if not already PUBLISHED (needs ≥1 offer with safe http(s) URL).
-- Nested **Offers editor** per product (CRUD). Price changes can write snapshots.
+- Nested **Offers editor** per product (CRUD). Labels: Merchant, Offer, Recommended. Price changes can write snapshots.
 - After save: `revalidateShop` for product paths.
+
+### Merchants
+
+Form fields already on the API: name, slug, kind, network, website, `defaultTag`, `disclosure`, `integrationKey`, `fetchEnabled`, `hostAllowlist` (one host per line). Empty `hostAllowlist` **blocks** `/go`. Public APIs do not return tag/allowlist/integration key.
 
 ### Import (`/admin/import`)
 
-- Paste up to **20** 10-char ASINs (comma/space/newline).
+- Paste up to **20** 10-char ASINs (comma/space/newline). UI title: **Amazon ASIN Import** (Amazon is the only live adapter; no merchant picker).
 - Optional **SearchItems** keywords (Creators API). If API off: message + paste still works.
 - Optional category.
 - **Import as drafts** — never publishes.
-- Match: (1) existing ASIN identifier → attach/refresh that product; (2) existing offer merchant+externalId; (3) else create DRAFT product + ASIN identifier + Amazon offer with tagged `dp/{ASIN}`.
+- Match (exact only, no fuzzy/ML): (1) GTIN/EAN/UPC → same Product; (2) trusted merchant id (Amazon ASIN is global; other adapters use merchant-scoped `MERCHANT_ID`); (3) existing offer `(merchantId, externalId)`; (4) else create DRAFT. Conflicting product IDs → `review`, no auto-merge. `{ asins }` still works for Amazon.
 - GetItems batched **10 ASINs/request**.
 - No Product.price write. No fake Amazon image if lookup misses (`imageUrl` null).
 - After create: enqueue `PRICE_REFRESH`.
@@ -258,10 +270,10 @@ Each tick: reclaim stale RUNNING jobs (lock &gt; 5 min) → enqueue due offer re
 | Job | Payload | Action |
 | --- | --- | --- |
 | `PRICE_REFRESH` | `{ offerId }` | Creators GetItems (or stub). Validate ASIN + INR + price&gt;0. Update offer. Snapshot if changed. PriceEvents. If events, `ALERT_DISPATCH`. Then `REVALIDATE` paths `/products/{slug}` and `/products`. |
-| `ALERT_DISPATCH` | `{ offerId }` | Email verified active alerts that match events (offer fresh + in stock). |
+| `ALERT_DISPATCH` | `{ offerId }` | Email verified active **product-level** alerts only if this offer is the current best eligible price; offer-scoped alerts (`offerId` set) still match that merchant offer. |
 | `SNAPSHOT_COMPACT` | `{}` | Delete extra snapshots older than 90 days; keep one per offer per UTC day. |
 | `REVALIDATE` | `{ path }` and/or `{ paths: string[] }` | POST Next `/admin/revalidate` with Bearer secret. No-op if `SITE_URL` or `REVALIDATE_SECRET` missing. |
-| `PRODUCT_IMPORT` | `{ asins, categoryId }` | Same as HTTP `importAsins` (HTTP import is **sync** for admin UX; job exists for queue). |
+| `PRODUCT_IMPORT` | `{ merchantId, externalIds, asins?, categoryId }` | Same as HTTP `importProducts` (HTTP import is **sync** for admin UX; job exists for queue). `{ asins }` still works for Amazon. |
 
 Adapter key: `AMAZON_IN` only. `getAdapter("AMAZON_IN", partnerTag)`. Disabled if credential id/secret empty → `AdapterDisabledError` / `enabled: false`.
 
@@ -328,7 +340,7 @@ Next also: `POST /admin/revalidate` `{ paths: string[] }` — **not** Express; N
 ## 10. Security / URLs
 
 - `isSafeHttpUrl`: http/https only.
-- Private/localhost hosts blocked for merchant/go URLs (`isPrivateHostname`, merchant `hostAllowlist`).
+- Private/localhost hosts blocked for merchant/go URLs (`isPrivateHostname`). Empty `hostAllowlist` fails closed (no `/go`). Non-empty list must match host.
 - Amazon tag injection: `Merchant.defaultTag` or `AMAZON_ASSOCIATE_TAG`; `applyAmazonTag`.
 - Do not log full Amazon PAC responses at info.
 - Alert tokens hashed; no email enumeration beyond generic success.
@@ -374,7 +386,7 @@ Backend Vitest: env, session, serializers, pagination, Amazon tag/adapter, impor
 
 ## 14. Naming (do not invent a second vocabulary)
 
-Use: `importAsins`, `publishProduct`, `searchCatalog`, `parseImportAsins`, `chunkAsins`, `decideImportAction` (`create` \| `attach-offer` \| `refresh-offer`), `PRODUCT_IMPORT`, `ah_session`, `getAdapter("AMAZON_IN")`, `enqueueJob`, `AppError`, frontend `request()` in `frontend/src/lib/api.ts`, `SITE_NAME` / KitchenIntel leftover only as store label fallback for `MANUAL` source in serializer (`storeLabels.MANUAL = "KitchenIntel"` — public brand is still My Pasand Shop).
+Use: `importAsins` / `importProducts`, `publishProduct`, `searchCatalog`, `parseAsins` (Amazon adapter), `chunkIds`, `decideImportAction` (`create` \| `attach-offer` \| `refresh-offer`), `PRODUCT_IMPORT`, `ah_session`, `getAdapter("AMAZON_IN")`, `enqueueJob`, `AppError`, frontend `request()` in `frontend/src/lib/api.ts`, `SITE_NAME` / `SITE_TAGLINE` / `SITE_HEADLINE` / `SITE_CATEGORY_SLUG` in `frontend/src/lib/site.ts`. Public `store` is the best-offer merchant name, not `Product.source`.
 
 ---
 
@@ -386,9 +398,12 @@ Flipkart/Croma adapters, deal labels/coupons, autocomplete, saved products, soci
 
 ## 16. Known schema/product gaps (honest)
 
-- Global unique `(merchantId, externalId)` **not** in Prisma unique (identifier uniqueness is global for ASIN/GTIN).
-- `Product.price` / `affiliateUrl` columns still exist; new import/worker paths must not treat them as source of truth.
-- `Product.source` still Amazon-centric enum including unused `FLIPKART`.
+- Global unique `(merchantId, externalId)` **not** in Prisma unique because `externalId` defaults to `""`. SQL already has a partial unique where `external_id <> ''`. Do not force a Prisma unique without a data cleanup.
+- `Product.price` / `affiliateUrl` / `source` / `sourceId` columns still exist. CMS still reads/writes them. Import/worker do not use them as live commerce. Public list/PDP price and store come from Offers.
+- `Product.source` still includes unused `FLIPKART`. Import still sets `AMAZON` for Amazon adapter provenance (admin stats).
+- `POST /products/:slug/go` still falls back to `Product.affiliateUrl` when there are no offers (backward compatible).
+- Default import merchant and `searchCatalog` remain Amazon. Amazon is the only live adapter.
+- Public price history stays product-level and gated; do not expose a per-merchant Amazon PAC chart.
 - Creators API typically needs **10 qualifying Amazon Associates sales / 30 days**; until then stub + tagged links.
 - Snapshot compaction keeps daily points after 90 days; does not delete all history.
 

@@ -101,6 +101,7 @@ export async function remove(req: Request, res: Response): Promise<void> {
 }
 
 export async function go(req: Request, res: Response): Promise<void> {
+  // Legacy POST /products/:slug/go. Prefer /go/:offerId. Kept so existing clients still work.
   const body = (req.body ?? {}) as ProductGoInput;
   const data = await recordProductClick(readParam(req, "slug"), {
     referrer: body.referrer ?? req.get("referer") ?? undefined,

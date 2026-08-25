@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { AffiliateNotice } from "@/components/legal/AffiliateNotice";
-import { SITE_NAME, SITE_TAGLINE } from "@/lib/site";
+import { SITE_CATEGORY_FOOTER_LABEL, SITE_CATEGORY_SLUG, SITE_NAME, SITE_TAGLINE } from "@/lib/site";
 
 export function Footer() {
   return (
@@ -35,8 +35,8 @@ export function Footer() {
               </Link>
             </li>
             <li>
-              <Link href="/categories/kitchen-appliances" className="hover:text-white">
-                Kitchen appliances
+              <Link href={`/categories/${SITE_CATEGORY_SLUG}`} className="hover:text-white">
+                {SITE_CATEGORY_FOOTER_LABEL}
               </Link>
             </li>
           </ul>

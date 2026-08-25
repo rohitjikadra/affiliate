@@ -18,19 +18,19 @@ type FieldErrors = {
 };
 
 const EXTRA_TYPES: { value: AlertType; label: string; hint: string }[] = [
-  { value: "TARGET_PRICE", label: "Target price", hint: "Email when it reaches a rupee amount you set." },
-  { value: "PERCENT_DROP", label: "Percent drop", hint: "Email when the recorded price falls by a percent." },
-  { value: "NEW_LOW", label: "New low on this site", hint: "Email when we record a new low for this product." },
+  { value: "TARGET_PRICE", label: "Target price", hint: "Email when the best eligible price reaches a rupee amount you set." },
+  { value: "PERCENT_DROP", label: "Percent drop", hint: "Email when the best eligible price falls by a percent." },
+  { value: "NEW_LOW", label: "New low on this site", hint: "Email when we record a new low for this product’s best eligible price." },
 ];
 
 function explanationFor(type: AlertType): string {
   if (type === "PERCENT_DROP") {
-    return "We’ll email you when the recorded price on this site drops by your percent.";
+    return "We’ll email you when the best eligible price on this site drops by your percent.";
   }
   if (type === "NEW_LOW") {
-    return "We’ll email you when we record a new low price for this product on this site.";
+    return "We’ll email you when we record a new low for this product’s best eligible price.";
   }
-  return "We’ll email you when the recorded price on this site reaches your target.";
+  return "We’ll email you when the best eligible price on this site reaches your target.";
 }
 
 function fieldMessage(error: ApiError, path: string): string | undefined {

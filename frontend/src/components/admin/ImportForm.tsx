@@ -140,7 +140,7 @@ export function ImportForm({ categories, creatorsConfigured }: ImportFormProps) 
       </form>
 
       <form onSubmit={(event) => void onImport(event)} className="rounded-md border border-neutral-200 bg-white p-4">
-        <h2 className="font-semibold text-navy">Import ASINs</h2>
+        <h2 className="font-semibold text-navy">Import Amazon ASINs</h2>
         <label className="mt-3 block text-sm font-medium text-neutral-800">
           ASINs
           <textarea

@@ -1,25 +1,34 @@
 import { describe, expect, it } from "vitest";
 import {
-  chunkAsins,
+  chunkIds,
   decideImportAction,
-  parseImportAsins,
+  normalizeIdentifierValue,
   publishBlockReason,
-  taggedAmazonUrl,
+  uniqueIdentifierRefs,
 } from "./import.match.js";
 
 describe("import matching", () => {
-  it("keeps unique 10-character ASINs", () => {
-    expect(parseImportAsins(["b08cfjbzrk", "nope", " B00HVXS7WC ", "B00HVXS7WC"])).toEqual([
-      "B08CFJBZRK",
-      "B00HVXS7WC",
-    ]);
+  it("batches lookup-sized chunks of 10", () => {
+    const ids = Array.from({ length: 12 }, (_, index) => `B00000000${index}`.slice(-10).toUpperCase());
+    expect(chunkIds(ids, 10)).toHaveLength(2);
+    expect(chunkIds(ids, 10)[0]).toHaveLength(10);
+    expect(chunkIds(ids, 10)[1]).toHaveLength(2);
   });
 
-  it("batches GetItems-sized chunks of 10", () => {
-    const ids = Array.from({ length: 12 }, (_, index) => `B00000000${index}`.slice(-10).toUpperCase());
-    expect(chunkAsins(ids, 10)).toHaveLength(2);
-    expect(chunkAsins(ids, 10)[0]).toHaveLength(10);
-    expect(chunkAsins(ids, 10)[1]).toHaveLength(2);
+  it("normalizes global catalog ids and de-duplicates identifier refs", () => {
+    expect(normalizeIdentifierValue("GTIN", " 890-1234 ")).toBe("8901234");
+    expect(normalizeIdentifierValue("ASIN", "b08cfjbzrk")).toBe("B08CFJBZRK");
+    expect(normalizeIdentifierValue("MERCHANT_ID", " SKU-99 ")).toBe("SKU-99");
+    expect(
+      uniqueIdentifierRefs([
+        { type: "GTIN", value: "8901234567890" },
+        { type: "GTIN", value: "890-1234-567890" },
+        { type: "ASIN", value: "b08cfjbzrk" },
+      ]),
+    ).toEqual([
+      { type: "GTIN", value: "8901234567890" },
+      { type: "ASIN", value: "B08CFJBZRK" },
+    ]);
   });
 
   it("matches identifier first, then merchant+externalId, then create", () => {
@@ -30,13 +39,22 @@ describe("import matching", () => {
     ).toBe("refresh-offer");
     expect(
       decideImportAction({ identifierProductId: "prod_1", offerId: "offer_1", offerProductId: "prod_2" }),
-    ).toBe("attach-offer");
+    ).toBe("review");
     expect(decideImportAction({ identifierProductId: null, offerId: "offer_1" })).toBe("refresh-offer");
-  });
-
-  it("tags Amazon dp links without scraping", () => {
-    expect(taggedAmazonUrl("B08CFJBZRK", null)).toBe("https://www.amazon.in/dp/B08CFJBZRK");
-    expect(taggedAmazonUrl("B08CFJBZRK", "tag-21")).toBe("https://www.amazon.in/dp/B08CFJBZRK?tag=tag-21");
+    expect(
+      decideImportAction({
+        globalProductId: "prod_1",
+        identifierProductId: null,
+        offerId: null,
+      }),
+    ).toBe("attach-offer");
+    expect(
+      decideImportAction({
+        globalProductId: "prod_1",
+        identifierProductId: "prod_2",
+        offerId: null,
+      }),
+    ).toBe("review");
   });
 
   it("blocks publish when there is no offer or safe URL", () => {

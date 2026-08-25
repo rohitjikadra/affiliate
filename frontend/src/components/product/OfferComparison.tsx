@@ -1,4 +1,4 @@
-import { AmazonPriceDisclaimer, isAmazonMerchant } from "@/components/legal/AmazonPriceDisclaimer";
+import { OfferLegalNotes } from "@/components/legal/OfferLegalNotes";
 import { BuyNowButton } from "@/components/product/BuyNowButton";
 import { FreshnessBadge } from "@/components/product/FreshnessBadge";
 import { ProductSection } from "@/components/product/ProductSection";
@@ -65,6 +65,9 @@ function BestOfferCard({ offer }: { offer: Offer }) {
   return (
     <div className="mt-4 rounded-md border border-forest/20 bg-forest-soft px-4 py-5 sm:px-5">
       <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-forest">Best price</p>
+      {offer.isPrimary ? (
+        <p className="mt-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-muted">Recommended</p>
+      ) : null}
       <div className="mt-3 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           {priceLabel ? (
@@ -85,9 +88,7 @@ function BestOfferCard({ offer }: { offer: Offer }) {
         </div>
         <BuyNowButton offerId={offer.id} merchantName={offer.merchant.name} available={offer.available} />
       </div>
-      {isAmazonMerchant(offer.merchant.slug) ? (
-        <AmazonPriceDisclaimer className="mt-4 max-w-2xl text-xs leading-5 text-ink-subtle" />
-      ) : null}
+      <OfferLegalNotes merchant={offer.merchant} className="mt-4 max-w-2xl text-xs leading-5 text-ink-subtle" />
     </div>
   );
 }
@@ -106,12 +107,13 @@ function OfferRow({ offer, isBest }: { offer: Offer; isBest: boolean }) {
         <p className="font-medium text-ink">
           {offer.merchant.name}
           {isBest ? <span className="ml-2 text-xs font-semibold text-forest">Best current price</span> : null}
+          {offer.isPrimary ? <span className="ml-2 text-xs font-semibold text-ink-muted">Recommended</span> : null}
         </p>
         {offer.title ? <p className="text-xs text-ink-subtle">{offer.title}</p> : null}
         <p className="mt-1 text-xs text-ink-muted">{availabilityLabel(offer)}</p>
         <FreshnessBadge level={offer.freshness} label={offer.freshnessLabel} className="mt-1" />
-        {isAmazonMerchant(offer.merchant.slug) && !isBest ? (
-          <AmazonPriceDisclaimer className="mt-1 max-w-md text-xs leading-5 text-ink-subtle" />
+        {!isBest ? (
+          <OfferLegalNotes merchant={offer.merchant} className="mt-1 max-w-md text-xs leading-5 text-ink-subtle" />
         ) : null}
       </div>
       <div className="flex items-center justify-between gap-4 sm:flex-col sm:items-end sm:text-right">

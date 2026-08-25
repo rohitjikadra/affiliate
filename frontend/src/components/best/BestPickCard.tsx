@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { OfferLegalNotes } from "@/components/legal/OfferLegalNotes";
 import { ProductImage } from "@/components/media/ProductImage";
 import { BuyNowButton } from "@/components/product/BuyNowButton";
 import { FreshnessBadge } from "@/components/product/FreshnessBadge";
@@ -139,6 +140,7 @@ export function BestPickCard({ item, rank }: BestPickCardProps) {
           View product
         </Link>
       </div>
+      <OfferLegalNotes merchant={(best ?? checkout)?.merchant} className="mt-3 text-xs leading-5 text-ink-subtle" />
     </article>
   );
 }

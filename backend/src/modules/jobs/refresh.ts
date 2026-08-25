@@ -3,7 +3,6 @@ import { env } from "../../config/env.js";
 import { logger } from "../../lib/logger.js";
 import { AdapterDisabledError, type MerchantAdapter } from "../integrations/types.js";
 import { getAdapter } from "../integrations/registry.js";
-import { validateNormalizedOffer } from "../integrations/amazon.js";
 import { recordPriceSnapshot } from "../pricing/snapshot.js";
 import { recordPriceEvents } from "../pricing/events.js";
 import { enqueueJob } from "./queue.js";
@@ -53,7 +52,7 @@ export async function refreshOffer(offerId: string, adapterOverride?: MerchantAd
     if (!item) {
       throw new Error("Empty lookup");
     }
-    const invalid = validateNormalizedOffer(item);
+    const invalid = adapter.validate(item);
     if (invalid) {
       await prisma.offer.update({
         where: { id: offer.id },
@@ -100,7 +99,7 @@ export async function refreshOffer(offerId: string, adapterOverride?: MerchantAd
       originalPrice: item.originalPrice,
       availability,
       inStock,
-      source: "AMAZON_CREATORS",
+      source: "WORKER",
       fetchStatus,
     });
 
