@@ -1,20 +1,61 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #111111;
-  --cta: #ffa41c;
-  --cta-hover: #fa8900;
-  --navy: #131921;
-  --navy-2: #232f3e;
-  --search: #febd69;
-  --search-hover: #f3a847;
-  --star: #de7921;
+  --background: #f4f1eb;
+  --foreground: #1c1917;
+  --paper: #f4f1eb;
+  --surface: #ffffff;
+  --ink: #1c1917;
+  --ink-muted: #57534e;
+  --ink-subtle: #78716c;
+  --line: #e7e2d9;
+  --forest: #1f5c4d;
+  --forest-2: #16463b;
+  --forest-soft: #e8efe9;
+  --clay: #c45c26;
+  --clay-hover: #a34a1d;
+  --mist: #e8efe9;
+  --fresh: #1f5c4d;
+  --fresh-bg: #e8efe9;
+  --aging: #92400e;
+  --aging-bg: #fef3c7;
+  --stale: #9f1239;
+  --stale-bg: #ffe4e6;
+  --unknown: #57534e;
+  --unknown-bg: #f5f5f4;
+  --shadow: 0 1px 0 rgba(28, 25, 23, 0.06);
+  --navy: #1f5c4d;
+  --navy-2: #16463b;
+  --cta: #c45c26;
+  --cta-hover: #a34a1d;
+  --search: #c45c26;
+  --search-hover: #a34a1d;
+  --star: #b45309;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-paper: var(--paper);
+  --color-surface: var(--surface);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-ink-subtle: var(--ink-subtle);
+  --color-line: var(--line);
+  --color-forest: var(--forest);
+  --color-forest-2: var(--forest-2);
+  --color-forest-soft: var(--forest-soft);
+  --color-clay: var(--clay);
+  --color-clay-hover: var(--clay-hover);
+  --color-mist: var(--mist);
+  --color-fresh: var(--fresh);
+  --color-fresh-bg: var(--fresh-bg);
+  --color-aging: var(--aging);
+  --color-aging-bg: var(--aging-bg);
+  --color-stale: var(--stale);
+  --color-stale-bg: var(--stale-bg);
+  --color-unknown: var(--unknown);
+  --color-unknown-bg: var(--unknown-bg);
   --color-cta: var(--cta);
   --color-cta-hover: var(--cta-hover);
   --color-navy: var(--navy);
@@ -24,6 +65,12 @@
   --color-star: var(--star);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-display: var(--font-display);
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --max-width-site: 70rem;
+  --shadow-hairline: var(--shadow);
 }
 
 html {
@@ -31,14 +78,115 @@ html {
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background: var(--paper);
+  color: var(--ink);
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
 }
 
-.scrollbar-none {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
+h1,
+h2,
+.font-display {
+  font-family: var(--font-display), Georgia, "Times New Roman", serif;
+}
+
+:focus-visible {
+  outline: 2px solid var(--forest);
+  outline-offset: 2px;
+}
+
+.shop-wrap {
+  margin-inline: auto;
+  width: 100%;
+  max-width: var(--max-width-site);
+  padding-inline: 1rem;
+}
+
+@media (min-width: 640px) {
+  .shop-wrap {
+    padding-inline: 1.5rem;
+  }
+}
+
+.product-section {
+  margin-top: 1.5rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  padding: 1.25rem;
+  box-shadow: var(--shadow);
+}
+
+@media (min-width: 640px) {
+  .product-section {
+    padding: 1.5rem;
+  }
+}
+
+.product-section-title {
+  font-family: var(--font-display), Georgia, serif;
+  font-size: 1.125rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+}
+
+.btn-buy {
+  display: inline-flex;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  background: var(--clay);
+  padding: 0.75rem 1.25rem;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #fff;
+  text-decoration: none;
+}
+
+.btn-buy:hover {
+  background: var(--clay-hover);
+}
+
+@media (min-width: 640px) {
+  .btn-buy {
+    width: auto;
+    min-width: 13rem;
+  }
+}
+
+.btn-buy-compact {
+  width: auto;
+  min-width: 0;
+  padding: 0.5rem 0.875rem;
+  font-size: 0.8125rem;
+}
+
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  padding: 0.75rem 1.25rem;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.btn-secondary:hover {
+  background: var(--paper);
+}
+
+.gallery-lightbox {
+  max-width: none;
+  max-height: none;
+}
+
+.gallery-lightbox::backdrop {
+  background: rgb(28, 25, 23, 0.94);
 }
 
 .scrollbar-none::-webkit-scrollbar {

@@ -1,15 +1,18 @@
-import type { ProductPayload, ProductSource, ScoreBreakdownItem, SpecItem } from "@/types/product";
+import type { ProductPayload, ProductSource, ProductStatus, ScoreBreakdownItem, SpecItem } from "@/types/product";
 import { isHttpUrl, slugifyTitle } from "@/lib/slug";
 
 export type ProductFormValues = {
   title: string;
   slug: string;
   description: string;
+  features: string;
   pros: string;
   cons: string;
   bestFor: string;
   faq: string;
   brand: string;
+  modelNumber: string;
+  whoShouldAvoid: string;
   warranty: string;
   specs: string;
   scoreBreakdown: string;
@@ -25,6 +28,7 @@ export type ProductFormValues = {
   seoDescription: string;
   featured: boolean;
   isActive: boolean;
+  status: ProductStatus;
   categoryId: string;
 };
 
@@ -131,6 +135,15 @@ export function validateProductForm(values: ProductFormValues): Record<string, s
     errors.affiliateUrl = "Enter a valid affiliate URL";
   }
 
+  if (values.features.trim().length > 4000) {
+    errors.features = "About this item must be 4000 characters or less";
+  } else if (values.features.trim()) {
+    const bullets = values.features.split("\n").map((line) => line.trim()).filter(Boolean);
+    if (bullets.length > 12) {
+      errors.features = "Use up to 12 bullets, one per line";
+    }
+  }
+
   if (values.pros.trim().length > 4000) {
     errors.pros = "Pros must be 4000 characters or less";
   }
@@ -163,11 +176,14 @@ export function toProductPayload(values: ProductFormValues): ProductPayload {
     title: values.title.trim(),
     slug: values.slug.trim() || undefined,
     description: values.description.trim() || null,
+    features: values.features.trim() || null,
     pros: values.pros.trim() || null,
     cons: values.cons.trim() || null,
     bestFor: values.bestFor.trim() || null,
     faq: values.faq.trim() || null,
     brand: values.brand.trim() || null,
+    modelNumber: values.modelNumber.trim() || null,
+    whoShouldAvoid: values.whoShouldAvoid.trim() || null,
     warranty: values.warranty.trim() || null,
     specs: textToSpecs(values.specs),
     scoreBreakdown: textToScoreBreakdown(values.scoreBreakdown),
@@ -184,6 +200,7 @@ export function toProductPayload(values: ProductFormValues): ProductPayload {
     seoDescription: values.seoDescription.trim() || null,
     featured: values.featured,
     isActive: values.isActive,
+    status: values.status,
     categoryId: values.categoryId || null,
   };
 }

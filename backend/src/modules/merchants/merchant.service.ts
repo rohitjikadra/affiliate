@@ -15,6 +15,10 @@ function serializeMerchant(
     network: string | null;
     defaultTag: string | null;
     disclosure: string | null;
+    integrationKey?: string | null;
+    rateLimitPerSecond?: { toString(): string } | number | null;
+    hostAllowlist?: string[];
+    fetchEnabled?: boolean;
     _count?: { offers: number };
   },
   options: { includeTag?: boolean } = {},
@@ -30,6 +34,11 @@ function serializeMerchant(
     network: merchant.network,
     defaultTag: options.includeTag ? merchant.defaultTag : null,
     disclosure: merchant.disclosure,
+    integrationKey: options.includeTag ? (merchant.integrationKey ?? null) : null,
+    rateLimitPerSecond:
+      options.includeTag && merchant.rateLimitPerSecond != null ? Number(merchant.rateLimitPerSecond) : null,
+    hostAllowlist: options.includeTag ? (merchant.hostAllowlist ?? []) : [],
+    fetchEnabled: options.includeTag ? Boolean(merchant.fetchEnabled) : false,
     offerCount: merchant._count?.offers ?? undefined,
   };
 }
@@ -78,6 +87,10 @@ export async function createMerchant(input: CreateMerchantInput) {
       network: input.network,
       defaultTag: input.defaultTag,
       disclosure: input.disclosure,
+      integrationKey: input.integrationKey,
+      rateLimitPerSecond: input.rateLimitPerSecond,
+      hostAllowlist: input.hostAllowlist ?? [],
+      fetchEnabled: input.fetchEnabled ?? false,
     },
     include: { _count: { select: { offers: true } } },
   });
@@ -99,6 +112,10 @@ export async function updateMerchant(id: string, input: UpdateMerchantInput) {
       ...(input.network !== undefined ? { network: input.network } : {}),
       ...(input.defaultTag !== undefined ? { defaultTag: input.defaultTag } : {}),
       ...(input.disclosure !== undefined ? { disclosure: input.disclosure } : {}),
+      ...(input.integrationKey !== undefined ? { integrationKey: input.integrationKey } : {}),
+      ...(input.rateLimitPerSecond !== undefined ? { rateLimitPerSecond: input.rateLimitPerSecond } : {}),
+      ...(input.hostAllowlist !== undefined ? { hostAllowlist: input.hostAllowlist } : {}),
+      ...(input.fetchEnabled !== undefined ? { fetchEnabled: input.fetchEnabled } : {}),
     },
     include: { _count: { select: { offers: true } } },
   });

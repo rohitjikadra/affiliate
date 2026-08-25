@@ -1,4 +1,5 @@
 import { prisma } from "../../config/prisma.js";
+import { getWorkerHealth } from "../jobs/queue.js";
 import type { CheckStatus, HealthCheckResult } from "./health.types.js";
 
 const SERVICE_NAME = "affiliate-api";
@@ -13,7 +14,7 @@ async function checkDatabase(): Promise<CheckStatus> {
 }
 
 export async function getHealth(): Promise<HealthCheckResult> {
-  const database = await checkDatabase();
+  const [database, worker] = await Promise.all([checkDatabase(), getWorkerHealth()]);
 
   return {
     status: database === "up" ? "ok" : "degraded",
@@ -22,6 +23,7 @@ export async function getHealth(): Promise<HealthCheckResult> {
     uptimeSeconds: Math.round(process.uptime()),
     checks: {
       database: { status: database },
+      worker: { status: worker.status === "up" ? "up" : "down", lastSeenAt: worker.lastSeenAt },
     },
   };
 }

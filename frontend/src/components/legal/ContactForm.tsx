@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { SITE_NAME } from "@/lib/site";
 
 export function ContactForm({ email }: { email: string }) {
   const [name, setName] = useState("");
@@ -9,7 +10,7 @@ export function ContactForm({ email }: { email: string }) {
 
   function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const subject = encodeURIComponent(`AffiliateHub contact from ${name.trim() || "visitor"}`);
+    const subject = encodeURIComponent(`${SITE_NAME} contact from ${name.trim() || "visitor"}`);
     const body = encodeURIComponent(`${message.trim()}\n\nFrom: ${name.trim()}\nEmail: ${fromEmail.trim()}`);
     window.location.href = `mailto:${email}?subject=${subject}&body=${body}`;
   }

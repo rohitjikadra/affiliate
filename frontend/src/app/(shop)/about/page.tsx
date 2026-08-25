@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { publicMetadata } from "@/lib/seo";
+import { SITE_NAME } from "@/lib/site";
 
 export const metadata: Metadata = publicMetadata({
   title: "About",
-  description: "AffiliateHub is a product discovery catalog, not an online store.",
+  description: `${SITE_NAME} is a kitchen appliance price-comparison catalog, not an online store.`,
   path: "/about",
 });
 
@@ -19,21 +20,21 @@ export default function AboutPage() {
           <span className="px-2">/</span>
           <span>About</span>
         </p>
-        <h1 className="mt-4 text-3xl font-bold text-navy">About AffiliateHub</h1>
+        <h1 className="mt-4 text-3xl font-bold text-navy">About {SITE_NAME}</h1>
         <div className="mt-6 space-y-6 text-base leading-7 text-neutral-700">
           <p>
-            AffiliateHub helps you choose kitchen appliances for Indian homes — mixer grinders, air fryers,
+            {SITE_NAME} helps you choose kitchen appliances for Indian homes — mixer grinders, air fryers,
             induction cooktops, kettles, and similar countertop products — before you buy. We are a catalog, not a
             store. We do not hold stock or take payment.
           </p>
           <p>
-            When you click <strong>Buy Now</strong> or <strong>View on Amazon</strong>, you leave this site and
-            complete the purchase with a retailer such as Amazon. Some of those links are affiliate links. If you
-            buy after clicking, we may earn a commission. The price you pay does not change because of that.
+            When you click <strong>Check price</strong>, you leave this site and complete the purchase with a
+            retailer such as Amazon. Some of those links are affiliate links. If you buy after clicking, we may earn
+            a commission. The price you pay does not change because of that.
           </p>
           <p>
-            Listings are editorial. Prices can go stale. Always check the retailer page for the live price, stock,
-            and delivery terms. Read our{" "}
+            Listings are editorial. Prices can go stale; we label how recently an offer was checked. Always confirm
+            the retailer page for the live price, stock, and delivery terms. Read our{" "}
             <Link href="/affiliate-disclosure" className="font-medium text-navy underline">
               affiliate disclosure
             </Link>{" "}

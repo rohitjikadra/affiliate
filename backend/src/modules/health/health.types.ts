@@ -10,5 +10,9 @@ export interface HealthCheckResult {
     database: {
       status: CheckStatus;
     };
+    worker: {
+      status: CheckStatus;
+      lastSeenAt?: string | null;
+    };
   };
 }

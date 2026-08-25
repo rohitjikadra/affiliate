@@ -32,6 +32,77 @@ enum GuideProductBadge {
   RELATED
 }
 
+enum ProductStatus {
+  DRAFT
+  REVIEW
+  PUBLISHED
+  ARCHIVED
+}
+
+enum OfferFetchStatus {
+  NEVER
+  QUEUED
+  SUCCESS
+  RATE_LIMITED
+  ERROR
+  UNAVAILABLE
+  INVALID
+}
+
+enum AvailabilityStatus {
+  IN_STOCK
+  OUT_OF_STOCK
+  UNKNOWN
+}
+
+enum IdentifierType {
+  ASIN
+  GTIN
+  EAN
+  UPC
+  MPN
+  SKU
+  MERCHANT_ID
+}
+
+enum JobType {
+  PRICE_REFRESH
+  PRODUCT_IMPORT
+  ALERT_DISPATCH
+  SNAPSHOT_COMPACT
+  REVALIDATE
+}
+
+enum JobStatus {
+  PENDING
+  RUNNING
+  SUCCEEDED
+  FAILED
+  DEAD
+}
+
+enum PriceEventType {
+  DROP
+  RISE
+  NEW_LOW
+  RETURN_TO_LOW
+  UNAVAILABLE
+  BACK_IN_STOCK
+}
+
+enum AlertType {
+  TARGET_PRICE
+  PERCENT_DROP
+  NEW_LOW
+}
+
+enum SnapshotSource {
+  MANUAL
+  ADMIN
+  AMAZON_CREATORS
+  WORKER
+}
+
 model Category {
   id          String    @id @default(cuid())
   slug        String    @unique
@@ -51,6 +122,7 @@ model Product {
   slug            String           @unique
   title           String
   description     String?
+  features        String?
   pros            String?
   cons            String?
   bestFor         String?          @map("best_for")
@@ -73,13 +145,20 @@ model Product {
   seoDescription  String?          @map("seo_description")
   featured        Boolean          @default(false)
   isActive        Boolean          @default(true) @map("is_active")
+  modelNumber     String?          @map("model_number")
+  whoShouldAvoid  String?          @map("who_should_avoid")
+  status          ProductStatus    @default(PUBLISHED)
+  publishedAt     DateTime?        @map("published_at")
   categoryId      String?          @map("category_id")
   category        Category?        @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   clicks          AffiliateClick[]
   offers          Offer[]
+  identifiers     ProductIdentifier[]
   guideProducts   GuideProduct[]
   comparisonItems ComparisonItem[]
   winningComparisons Comparison[]  @relation("ComparisonWinner")
+  priceEvents     PriceEvent[]
+  priceAlerts     PriceAlert[]
   createdAt       DateTime         @default(now()) @map("created_at")
   updatedAt       DateTime         @updatedAt @map("updated_at")
 
@@ -87,7 +166,25 @@ model Product {
   @@index([featured])
   @@index([source])
   @@index([isActive])
+  @@index([status, isActive])
+  @@index([brand])
+  @@index([updatedAt])
   @@map("products")
+}
+
+model ProductIdentifier {
+  id         String         @id @default(cuid())
+  productId  String         @map("product_id")
+  product    Product        @relation(fields: [productId], references: [id], onDelete: Cascade)
+  type       IdentifierType
+  value      String
+  merchantId String?        @map("merchant_id")
+  merchant   Merchant?      @relation(fields: [merchantId], references: [id], onDelete: SetNull)
+  createdAt  DateTime       @default(now()) @map("created_at")
+
+  @@unique([type, value])
+  @@index([productId])
+  @@map("product_identifiers")
 }
 
 model Merchant {
@@ -99,13 +196,19 @@ model Merchant {
   logoUrl    String?          @map("logo_url")
   isActive   Boolean          @default(true) @map("is_active")
   network    String?
-  defaultTag String?          @map("default_tag")
-  disclosure String?
-  offers     Offer[]
-  clicks     AffiliateClick[]
-  createdAt  DateTime         @default(now()) @map("created_at")
-  updatedAt  DateTime         @updatedAt @map("updated_at")
+  defaultTag         String?          @map("default_tag")
+  disclosure         String?
+  integrationKey     String?          @unique @map("integration_key")
+  rateLimitPerSecond Decimal?         @map("rate_limit_per_second") @db.Decimal(8, 3)
+  hostAllowlist      String[]         @default([]) @map("host_allowlist")
+  fetchEnabled       Boolean          @default(false) @map("fetch_enabled")
+  offers             Offer[]
+  clicks             AffiliateClick[]
+  identifiers        ProductIdentifier[]
+  createdAt          DateTime         @default(now()) @map("created_at")
+  updatedAt          DateTime         @updatedAt @map("updated_at")
 
+  @@index([isActive])
   @@map("merchants")
 }
 
@@ -121,17 +224,29 @@ model Offer {
   currency      String           @default("INR")
   affiliateUrl  String           @map("affiliate_url")
   externalId    String           @default("") @map("external_id")
-  inStock       Boolean          @default(true) @map("in_stock")
-  isPrimary     Boolean          @default(false) @map("is_primary")
-  lastCheckedAt DateTime?        @map("last_checked_at")
-  clicks        AffiliateClick[]
-  priceHistory  PriceSnapshot[]
-  createdAt     DateTime         @default(now()) @map("created_at")
-  updatedAt     DateTime         @updatedAt @map("updated_at")
+  inStock               Boolean            @default(true) @map("in_stock")
+  isPrimary             Boolean            @default(false) @map("is_primary")
+  lastCheckedAt         DateTime?          @map("last_checked_at")
+  productUrl            String?            @map("product_url")
+  availability          AvailabilityStatus @default(UNKNOWN)
+  lastSuccessfulFetchAt DateTime?          @map("last_successful_fetch_at")
+  nextFetchAt           DateTime?          @map("next_fetch_at")
+  fetchStatus           OfferFetchStatus   @default(NEVER) @map("fetch_status")
+  fetchError            String?            @map("fetch_error")
+  consecutiveFailures   Int                @default(0) @map("consecutive_failures")
+  metadata              Json?
+  clicks                AffiliateClick[]
+  priceHistory          PriceSnapshot[]
+  priceEvents           PriceEvent[]
+  priceAlerts           PriceAlert[]
+  createdAt             DateTime           @default(now()) @map("created_at")
+  updatedAt             DateTime           @updatedAt @map("updated_at")
 
   @@unique([productId, merchantId, externalId])
   @@index([productId, isPrimary])
   @@index([merchantId])
+  @@index([nextFetchAt, fetchStatus])
+  @@index([productId, inStock])
   @@map("offers")
 }
 
@@ -251,15 +366,92 @@ model PageView {
 }
 
 model PriceSnapshot {
-  id         String   @id @default(cuid())
-  offerId    String   @map("offer_id")
-  offer      Offer    @relation(fields: [offerId], references: [id], onDelete: Cascade)
-  price      Decimal  @db.Decimal(12, 2)
-  currency   String
-  recordedAt DateTime @default(now()) @map("recorded_at")
+  id           String              @id @default(cuid())
+  offerId      String              @map("offer_id")
+  offer        Offer               @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  price        Decimal             @db.Decimal(12, 2)
+  currency     String
+  recordedAt   DateTime            @default(now()) @map("recorded_at")
+  originalPrice Decimal?           @map("original_price") @db.Decimal(12, 2)
+  availability AvailabilityStatus?
+  inStock      Boolean?            @map("in_stock")
+  source       SnapshotSource      @default(ADMIN)
+  fetchStatus  OfferFetchStatus?   @map("fetch_status")
 
   @@index([offerId, recordedAt])
+  @@index([recordedAt])
   @@map("price_snapshots")
+}
+
+model Job {
+  id          String    @id @default(cuid())
+  type        JobType
+  payload     Json
+  status      JobStatus @default(PENDING)
+  runAfter    DateTime  @default(now()) @map("run_after")
+  priority    Int       @default(0)
+  attempts    Int       @default(0)
+  maxAttempts Int       @default(5) @map("max_attempts")
+  lockedAt    DateTime? @map("locked_at")
+  lockedBy    String?   @map("locked_by")
+  lastError   String?   @map("last_error")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  completedAt DateTime? @map("completed_at")
+
+  @@index([status, runAfter, priority])
+  @@index([type, status])
+  @@map("jobs")
+}
+
+model WorkerHeartbeat {
+  id        String   @id
+  startedAt DateTime @default(now()) @map("started_at")
+  lastSeenAt DateTime @updatedAt @map("last_seen_at")
+  stats     Json?
+
+  @@map("worker_heartbeats")
+}
+
+model PriceEvent {
+  id            String         @id @default(cuid())
+  productId     String         @map("product_id")
+  product       Product        @relation(fields: [productId], references: [id], onDelete: Cascade)
+  offerId       String?        @map("offer_id")
+  offer         Offer?         @relation(fields: [offerId], references: [id], onDelete: SetNull)
+  type          PriceEventType
+  previousPrice Decimal?       @map("previous_price") @db.Decimal(12, 2)
+  currentPrice  Decimal?       @map("current_price") @db.Decimal(12, 2)
+  percent       Decimal?       @db.Decimal(8, 2)
+  createdAt     DateTime       @default(now()) @map("created_at")
+
+  @@index([productId, createdAt])
+  @@index([type, createdAt])
+  @@map("price_events")
+}
+
+model PriceAlert {
+  id               String    @id @default(cuid())
+  productId        String    @map("product_id")
+  product          Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  offerId          String?   @map("offer_id")
+  offer            Offer?    @relation(fields: [offerId], references: [id], onDelete: SetNull)
+  email            String
+  emailNormalized  String    @map("email_normalized")
+  emailVerifiedAt  DateTime? @map("email_verified_at")
+  verifyTokenHash  String?   @map("verify_token_hash")
+  type             AlertType
+  targetPrice      Decimal?  @map("target_price") @db.Decimal(12, 2)
+  percentThreshold Decimal?  @map("percent_threshold") @db.Decimal(8, 2)
+  isActive         Boolean   @default(true) @map("is_active")
+  lastTriggeredAt  DateTime? @map("last_triggered_at")
+  unsubTokenHash   String    @map("unsub_token_hash")
+  createdAt        DateTime  @default(now()) @map("created_at")
+
+  @@index([productId, isActive])
+  @@index([emailNormalized])
+  @@index([verifyTokenHash])
+  @@index([unsubTokenHash])
+  @@map("price_alerts")
 }
 
 model SlugRedirect {

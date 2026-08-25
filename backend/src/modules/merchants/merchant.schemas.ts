@@ -50,6 +50,10 @@ export const createMerchantSchema = z.object({
   network: z.preprocess(emptyToNull, z.string().trim().max(50).nullable().optional()),
   defaultTag: z.preprocess(emptyToNull, z.string().trim().max(80).nullable().optional()),
   disclosure: z.preprocess(emptyToNull, z.string().trim().max(2000).nullable().optional()),
+  integrationKey: z.preprocess(emptyToNull, z.string().trim().max(80).nullable().optional()),
+  rateLimitPerSecond: z.preprocess(emptyToNull, z.number().positive().nullable().optional()),
+  hostAllowlist: z.array(z.string().trim().min(1).max(200)).max(20).optional(),
+  fetchEnabled: z.boolean().optional(),
 });
 
 export const updateMerchantSchema = createMerchantSchema.partial();

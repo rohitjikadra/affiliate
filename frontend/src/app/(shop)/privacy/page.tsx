@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { publicMetadata } from "@/lib/seo";
+import { SITE_NAME } from "@/lib/site";
 
 export const metadata: Metadata = publicMetadata({
   title: "Privacy",
-  description: "How AffiliateHub uses cookies, hashed click logs, and page views — without storing raw IPs or emails.",
+  description: `How ${SITE_NAME} uses cookies, hashed click logs, page views, and optional price-alert emails — without storing raw IPs.`,
   path: "/privacy",
 });
 
@@ -24,7 +25,7 @@ export default function PrivacyPage() {
           <section>
             <h2 className="text-xl font-semibold text-navy">What we collect</h2>
             <p className="mt-3">
-              AffiliateHub is a catalog. We do not create shopper accounts on this site. When you browse, your
+              {SITE_NAME} is a catalog. We do not create shopper accounts on this site. When you browse, your
               browser may send standard request data to our hosting provider. We do not store raw IP addresses
               in our application database.
             </p>
@@ -49,6 +50,23 @@ export default function PrivacyPage() {
               Instead of your IP address we store a short HMAC hash that rotates daily. We do not store your
               name, email, or payment details. After the click, Amazon or another retailer may track the visit
               for their affiliate programme.
+            </p>
+          </section>
+          <section>
+            <h2 className="text-xl font-semibold text-navy">Price observations</h2>
+            <p className="mt-3">
+              When we check a merchant offer, we may store the price, stock flag, and time we saw it. That data
+              powers freshness labels and, if enabled after legal review, on-site charts labelled as prices
+              recorded here — not as Amazon official history. We do not invent missing days.
+            </p>
+          </section>
+          <section>
+            <h2 className="text-xl font-semibold text-navy">Price alerts</h2>
+            <p className="mt-3">
+              If you create a price alert, we store the email you typed, the product, the alert type, and optional
+              target price or percent. Confirm and unsubscribe links use hashed tokens, not passwords. We send
+              mail only for that product&apos;s alerts. We do not sell your email or use it for marketing lists.
+              You can unsubscribe from any alert email.
             </p>
           </section>
           <section>

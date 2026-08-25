@@ -1,7 +1,7 @@
 import type { ProductSource } from "../../generated/prisma/client.js";
 import { prisma } from "../../config/prisma.js";
 import { AppError } from "../../lib/errors.js";
-import { isSafeHttpUrl, truncate } from "../../lib/url.js";
+import { isAllowedMerchantUrl, isSafeHttpUrl, truncate } from "../../lib/url.js";
 import { applyAmazonTag } from "../affiliates/amazon.js";
 
 export type ClickContext = {
@@ -59,18 +59,19 @@ export async function recordOfferClick(offerId: string, context: ClickContext) {
         select: {
           id: true,
           isActive: true,
+          status: true,
           source: true,
         },
       },
     },
   });
 
-  if (!offer || !offer.product.isActive || !offer.merchant.isActive || !offer.inStock) {
+  if (!offer || !offer.product.isActive || offer.product.status !== "PUBLISHED" || !offer.merchant.isActive || !offer.inStock) {
     throw new AppError(404, "NOT_FOUND", "This offer is not available.");
   }
 
   const destination = applyAmazonTag(offer.affiliateUrl, offer.merchant.defaultTag);
-  if (!isSafeHttpUrl(destination)) {
+  if (!isAllowedMerchantUrl(destination, offer.merchant.hostAllowlist ?? [])) {
     throw new AppError(409, "UNAVAILABLE", "This offer is currently unavailable.");
   }
 
@@ -99,7 +100,7 @@ export async function recordProductClick(slug: string, context: ClickContext) {
     },
   });
 
-  if (!product || !product.isActive) {
+  if (!product || !product.isActive || product.status !== "PUBLISHED") {
     throw new AppError(404, "NOT_FOUND", "This product is not available.");
   }
 

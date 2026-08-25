@@ -5,6 +5,8 @@ export async function getConfig(_req: Request, res: Response): Promise<void> {
   res.status(200).json({
     data: {
       amazonAssociateTag: env.amazonAssociateTag,
+      creatorsConfigured: Boolean(env.amazonCreatorsCredentialId),
+      priceHistoryPublic: env.priceHistoryPublic,
     },
   });
 }

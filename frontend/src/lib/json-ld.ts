@@ -1,8 +1,9 @@
 import type { Product } from "@/types/product";
+import { parseFaq } from "@/lib/text";
 import { absoluteUrl, SITE_NAME } from "@/lib/site";
 
 export function productJsonLd(product: Product, path: string) {
-  const offers = product.offers.filter((offer) => offer.available);
+  const offers = product.freshness === "fresh" ? product.offers.filter((offer) => offer.available) : [];
   return {
     "@context": "https://schema.org",
     "@type": "Product",
@@ -66,16 +67,7 @@ export function breadcrumbJsonLd(items: { name: string; path: string }[]) {
 }
 
 export function faqJsonLd(faq: string | null | undefined) {
-  if (!faq?.trim()) {
-    return null;
-  }
-
-  const blocks = faq.split(/\n\s*\n/).map((block) => block.trim()).filter(Boolean);
-  const pairs: { q: string; a: string }[] = [];
-  for (let index = 0; index < blocks.length - 1; index += 2) {
-    pairs.push({ q: blocks[index], a: blocks[index + 1] });
-  }
-
+  const pairs = parseFaq(faq);
   if (pairs.length === 0) {
     return null;
   }
@@ -85,8 +77,8 @@ export function faqJsonLd(faq: string | null | undefined) {
     "@type": "FAQPage",
     mainEntity: pairs.map((pair) => ({
       "@type": "Question",
-      name: pair.q,
-      acceptedAnswer: { "@type": "Answer", text: pair.a },
+      name: pair.question,
+      acceptedAnswer: { "@type": "Answer", text: pair.answer },
     })),
   };
 }

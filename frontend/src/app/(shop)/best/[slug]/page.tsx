@@ -9,7 +9,7 @@ import { getGuide } from "@/lib/api";
 import { ApiError } from "@/types/product";
 import type { Metadata } from "next";
 import { publicMetadata, jsonLd } from "@/lib/seo";
-import { articleJsonLd } from "@/lib/json-ld";
+import { articleJsonLd, breadcrumbJsonLd } from "@/lib/json-ld";
 import { handleMoved } from "@/lib/redirects";
 
 type BestPageProps = {
@@ -49,6 +49,11 @@ export default async function BestPage({ params }: BestPageProps) {
     if (guide.kind !== "BEST_OF") {
       redirect(`/guides/${guide.slug}`);
     }
+    const breadcrumbs = [
+      { name: "Home", path: "/" },
+      { name: "Best of", path: "/best" },
+      { name: guide.title, path: `/best/${guide.slug}` },
+    ];
 
     return (
       <article className="mx-auto w-full max-w-4xl px-4 py-8 sm:px-6">
@@ -66,11 +71,14 @@ export default async function BestPage({ params }: BestPageProps) {
             ),
           }}
         />
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(breadcrumbJsonLd(breadcrumbs)) }} />
         <div className="rounded-md bg-white px-5 py-8 sm:px-8">
           <p className="text-sm text-neutral-500">
             <Link href="/" className="hover:text-navy">Home</Link>
             <span className="px-2">/</span>
-            <Link href="/guides" className="hover:text-navy">Guides</Link>
+            <Link href="/best" className="hover:text-navy">Best of</Link>
+            <span className="px-2">/</span>
+            <span>{guide.title}</span>
           </p>
           <h1 className="mt-4 text-3xl font-bold text-navy">{guide.title}</h1>
           {guide.excerpt ? <p className="mt-3 text-base text-neutral-600">{guide.excerpt}</p> : null}
@@ -95,6 +103,11 @@ export default async function BestPage({ params }: BestPageProps) {
                     </Link>
                     {item.product.ourScore ? <ScoreBadge score={Number(item.product.ourScore)} className="mt-2" /> : null}
                     {item.notes ? <p className="mt-2 text-sm text-neutral-600">{item.notes}</p> : null}
+                    {item.product.whoShouldAvoid ? (
+                      <p className="mt-2 text-sm text-neutral-700">
+                        <strong>Who should avoid:</strong> {item.product.whoShouldAvoid}
+                      </p>
+                    ) : null}
                   </div>
                   <BuyNowButton
                     offerId={item.product.primaryOfferId}

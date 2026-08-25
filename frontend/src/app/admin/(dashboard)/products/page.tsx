@@ -28,9 +28,14 @@ export default async function AdminProductsPage({ searchParams }: AdminProductsP
               ? `${meta.total} matching ${meta.total === 1 ? "product" : "products"}`
               : `${meta.total} products in the catalog`}
           </p>
-          <Link href="/admin/products/create" className="text-sm font-semibold text-navy hover:underline">
-            Add product
-          </Link>
+          <div className="flex gap-4">
+            <Link href="/admin/products/create" className="text-sm font-semibold text-navy hover:underline">
+              Add product
+            </Link>
+            <Link href="/admin/import" className="text-sm font-semibold text-navy hover:underline">
+              Import ASINs
+            </Link>
+          </div>
         </div>
         <form action="/admin/products" method="get" className="mb-4 flex max-w-md">
           <input

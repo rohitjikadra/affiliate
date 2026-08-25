@@ -9,7 +9,7 @@ import { formatOptionalMoney } from "@/lib/money";
 import { ApiError } from "@/types/product";
 import type { Metadata } from "next";
 import { publicMetadata, jsonLd } from "@/lib/seo";
-import { articleJsonLd } from "@/lib/json-ld";
+import { articleJsonLd, breadcrumbJsonLd } from "@/lib/json-ld";
 import { handleMoved } from "@/lib/redirects";
 
 type ComparePageProps = {
@@ -38,6 +38,11 @@ export default async function ComparePage({ params }: ComparePageProps) {
 
   try {
     const comparison = await getComparison(slug);
+    const breadcrumbs = [
+      { name: "Home", path: "/" },
+      { name: "Compare", path: "/compare" },
+      { name: comparison.title, path: `/compare/${comparison.slug}` },
+    ];
 
     return (
       <article className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6">
@@ -55,11 +60,14 @@ export default async function ComparePage({ params }: ComparePageProps) {
             ),
           }}
         />
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(breadcrumbJsonLd(breadcrumbs)) }} />
         <div className="rounded-md bg-white px-5 py-8 sm:px-8">
           <p className="text-sm text-neutral-500">
             <Link href="/" className="hover:text-navy">Home</Link>
             <span className="px-2">/</span>
-            <span>Compare</span>
+            <Link href="/compare" className="hover:text-navy">Compare</Link>
+            <span className="px-2">/</span>
+            <span>{comparison.title}</span>
           </p>
           <h1 className="mt-4 text-3xl font-bold text-navy">{comparison.title}</h1>
           {comparison.excerpt ? <p className="mt-3 text-base text-neutral-600">{comparison.excerpt}</p> : null}
@@ -104,7 +112,7 @@ export default async function ComparePage({ params }: ComparePageProps) {
                   <th className="py-2 pr-4 font-medium">Price</th>
                   {comparison.items.map((item) => (
                     <td key={`${item.id}-price`} className="px-3 py-2">
-                      {formatOptionalMoney(item.product.price, item.product.currency) ?? "Check price on Amazon"}
+                      {formatOptionalMoney(item.product.price, item.product.currency) ?? "Price unavailable"}
                     </td>
                   ))}
                 </tr>
@@ -116,12 +124,20 @@ export default async function ComparePage({ params }: ComparePageProps) {
                     </td>
                   ))}
                 </tr>
+                <tr className="border-b border-neutral-100">
+                  <th className="py-2 pr-4 font-medium">Who should avoid</th>
+                  {comparison.items.map((item) => (
+                    <td key={`${item.id}-avoid`} className="px-3 py-2 text-neutral-700">
+                      {item.product.whoShouldAvoid ?? "—"}
+                    </td>
+                  ))}
+                </tr>
                 <tr>
                   <th className="py-2 pr-4 font-medium">Offer</th>
                   {comparison.items.map((item) => (
                     <td key={`${item.id}-cta`} className="px-3 py-2">
                       <BuyNowButton
-                        offerId={item.product.primaryOfferId}
+                        offerId={item.product.bestOfferId ?? item.product.primaryOfferId}
                         merchantName={item.product.store}
                         available={item.product.available}
                       />

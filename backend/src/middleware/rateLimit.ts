@@ -40,3 +40,12 @@ export const pageViewRateLimit = rateLimit({
   skip: skipInTest,
   handler: jsonHandler("Too many requests. Try again shortly."),
 });
+
+export const alertRateLimit = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 8,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: skipInTest,
+  handler: jsonHandler("Too many alert requests. Try again later."),
+});

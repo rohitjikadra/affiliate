@@ -20,6 +20,7 @@ import {
   setProductStatus,
   updateProduct,
 } from "./product.service.js";
+import { getPriceHistory } from "../history/history.service.js";
 
 function readParam(req: Request, name: string): string {
   const value = req.params[name];
@@ -65,6 +66,12 @@ export async function getByIdOrSlug(req: Request, res: Response): Promise<void> 
       relatedComparisons,
     },
   });
+}
+
+export async function priceHistory(req: Request, res: Response): Promise<void> {
+  const range = String((res.locals.query as { range?: string } | undefined)?.range ?? "30d");
+  const data = await getPriceHistory(readParam(req, "id"), range);
+  res.status(200).json({ data });
 }
 
 export async function related(req: Request, res: Response): Promise<void> {

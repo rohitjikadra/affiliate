@@ -121,11 +121,15 @@ export const createProductSchema = z.object({
   title: z.string().trim().min(1, "Title is required").max(200),
   slug: slugSchema,
   description: optionalText(5000),
+  features: optionalText(4000),
   pros: optionalText(4000),
   cons: optionalText(4000),
   bestFor: optionalText(500),
   faq: optionalText(8000),
   brand: optionalText(80),
+  modelNumber: optionalText(80),
+  whoShouldAvoid: optionalText(2000),
+  status: z.enum(["DRAFT", "REVIEW", "PUBLISHED", "ARCHIVED"]).optional(),
   warranty: optionalText(160),
   specs: optionalSpecList,
   scoreBreakdown: optionalScoreBreakdown,
@@ -149,6 +153,7 @@ export const updateProductSchema = createProductSchema.partial();
 
 export const productStatusSchema = z.object({
   isActive: z.boolean(),
+  status: z.enum(["DRAFT", "REVIEW", "PUBLISHED", "ARCHIVED"]).optional(),
 });
 
 export const productGoSchema = z.object({
@@ -198,6 +203,7 @@ export const listProductsQuerySchema = z.object({
   ),
   featured: queryBoolean,
   includeInactive: queryBoolean,
+  sort: z.preprocess(firstQueryValue, z.enum(["trending", "drops"]).optional()),
   page: queryNumber,
   limit: z.preprocess((value) => {
     const raw = firstQueryValue(value);

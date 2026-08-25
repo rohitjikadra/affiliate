@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { loginAdmin } from "@/lib/api";
 import { safeAdminPath } from "@/lib/admin";
+import { SITE_NAME } from "@/lib/site";
 import { ApiError } from "@/types/product";
 
 type LoginFormProps = {
@@ -36,7 +37,7 @@ export function LoginForm({ next }: LoginFormProps) {
       onSubmit={(event) => void onSubmit(event)}
       className="mx-auto w-full max-w-md rounded-md border border-neutral-200 bg-white p-8"
     >
-      <p className="text-sm font-semibold text-navy">AffiliateHub Admin</p>
+      <p className="text-sm font-semibold text-navy">{SITE_NAME} Admin</p>
       <h1 className="mt-2 text-2xl font-bold text-neutral-900">Sign in</h1>
       <p className="mt-2 text-sm text-neutral-600">Enter the admin password to manage the shop.</p>
 

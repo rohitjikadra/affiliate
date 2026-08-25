@@ -1,8 +1,10 @@
 import type { Product, ProductSource } from "../../generated/prisma/client.js";
+import { freshnessLabel } from "../../lib/freshness.js";
 import { serializeOffer } from "../offers/offer.serializer.js";
+import { summarizeBestPrice } from "../pricing/best-price.js";
 
 const storeLabels: Record<ProductSource, string> = {
-  MANUAL: "AffiliateHub",
+  MANUAL: "My Pasand Shop",
   AMAZON: "Amazon",
   FLIPKART: "Flipkart",
 };
@@ -13,6 +15,11 @@ type SerializeOptions = {
 };
 
 type LooseProduct = Product & {
+  modelNumber?: string | null;
+  whoShouldAvoid?: string | null;
+  status?: string;
+  publishedAt?: Date | null;
+  features?: string | null;
   category?: { id: string; slug: string; name: string } | null;
   _count?: { clicks: number };
   offers?: Parameters<typeof serializeOffer>[0][];
@@ -112,42 +119,52 @@ function editorialScore(product: Product): string | null {
 export function serializeProduct(product: LooseProduct, options: SerializeOptions = {}) {
   const includeAffiliateUrl = options.includeAffiliateUrl ?? false;
   const offers = (product.offers ?? []).map((offer) => serializeOffer(offer, { includeAffiliateUrl }));
+  const best = summarizeBestPrice(product.offers ?? []);
   const primaryOffer = offers.find((offer) => offer.isPrimary) ?? offers[0] ?? null;
+  const bestOffer = offers.find((offer) => offer.id === best.offerId) ?? primaryOffer;
   const hasLiveOffer = offers.some((offer) => offer.available);
-  const offerPrice = primaryOffer?.price ?? null;
   const productPrice = product.price != null ? product.price.toString() : null;
-
   const images = parseImageUrls(product.images, product.imageUrl);
+  const checkedAt = best.checkedAt;
 
   return {
     id: product.id,
     slug: product.slug,
     title: product.title,
     description: product.description,
+    features: product.features ?? null,
     pros: product.pros,
     cons: product.cons,
     bestFor: product.bestFor,
     faq: product.faq,
     brand: product.brand,
+    modelNumber: product.modelNumber ?? null,
+    whoShouldAvoid: product.whoShouldAvoid ?? null,
+    status: product.status ?? "PUBLISHED",
+    publishedAt: product.publishedAt?.toISOString() ?? null,
     warranty: product.warranty,
     specs: parseSpecs(product.specs),
     scoreBreakdown: parseScoreBreakdown(product.scoreBreakdown),
     images,
     imageUrl: images[0] ?? null,
-    price: offerPrice ?? productPrice,
-    originalPrice: primaryOffer?.originalPrice ?? product.originalPrice?.toString() ?? null,
+    price: best.price ?? bestOffer?.price ?? productPrice,
+    originalPrice: best.originalPrice ?? bestOffer?.originalPrice ?? product.originalPrice?.toString() ?? null,
     ourScore: editorialScore(product),
-    currency: primaryOffer?.currency ?? product.currency,
-    lastCheckedAt: primaryOffer?.lastCheckedAt ?? null,
+    currency: best.currency ?? bestOffer?.currency ?? product.currency,
+    lastCheckedAt: checkedAt ?? bestOffer?.lastCheckedAt ?? null,
+    freshness: best.freshness,
+    freshnessLabel: freshnessLabel(checkedAt),
+    bestOfferId: best.offerId,
+    offerCount: best.offerCount,
     affiliateUrl: includeAffiliateUrl && !primaryOffer ? product.affiliateUrl : null,
     source: product.source,
-    store: primaryOffer?.merchant.name ?? storeLabels[product.source],
+    store: best.merchantName ?? bestOffer?.merchant.name ?? storeLabels[product.source],
     sourceId: includeAffiliateUrl ? product.sourceId : null,
     seoTitle: product.seoTitle,
     seoDescription: product.seoDescription,
     featured: product.featured,
     isActive: product.isActive,
-    available: product.isActive && hasLiveOffer,
+    available: product.isActive && (product.status ?? "PUBLISHED") === "PUBLISHED" && hasLiveOffer,
     clickCount: options.includeClickCount ? (product._count?.clicks ?? 0) : undefined,
     categoryId: product.categoryId,
     category: product.category ?? null,

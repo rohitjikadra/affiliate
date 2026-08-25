@@ -3,6 +3,7 @@ import { AppError } from "../../lib/errors.js";
 import { applyAmazonTag } from "../affiliates/amazon.js";
 import type { CreateOfferInput, UpdateOfferInput } from "./offer.schemas.js";
 import { serializeOffer } from "./offer.serializer.js";
+import { recordPriceSnapshot } from "../pricing/snapshot.js";
 
 const offerInclude = {
   merchant: {
@@ -18,17 +19,22 @@ const offerInclude = {
   },
 } as const;
 
-async function snapshotPrice(offerId: string, price: number | null | undefined, currency: string) {
-  if (price == null) {
-    return;
-  }
-
-  await prisma.priceSnapshot.create({
-    data: {
-      offerId,
-      price,
-      currency,
-    },
+async function snapshotPrice(
+  offerId: string,
+  price: number | null | undefined,
+  currency: string,
+  extra: { originalPrice?: number | null; inStock?: boolean } = {},
+) {
+  const inStock = extra.inStock ?? true;
+  await recordPriceSnapshot({
+    offerId,
+    price,
+    currency,
+    originalPrice: extra.originalPrice ?? null,
+    availability: inStock ? "IN_STOCK" : "OUT_OF_STOCK",
+    inStock,
+    source: "ADMIN",
+    fetchStatus: "SUCCESS",
   });
 }
 
@@ -83,24 +89,16 @@ export async function createOffer(productId: string, input: CreateOfferInput) {
       externalId: input.externalId ?? "",
       inStock: input.inStock,
       isPrimary: input.isPrimary,
+      availability: input.inStock ? "IN_STOCK" : "OUT_OF_STOCK",
       lastCheckedAt: new Date(),
     },
     include: offerInclude,
   });
 
-  await snapshotPrice(offer.id, input.price ?? null, input.currency);
-
-  if (input.isPrimary && input.price != null) {
-    await prisma.product.update({
-      where: { id: productId },
-      data: {
-        price: input.price,
-        originalPrice: input.originalPrice ?? undefined,
-        currency: input.currency,
-        affiliateUrl,
-      },
-    });
-  }
+  await snapshotPrice(offer.id, input.price ?? null, input.currency, {
+    originalPrice: input.originalPrice ?? null,
+    inStock: input.inStock,
+  });
 
   return serializeOffer(offer, { includeAffiliateUrl: true });
 }
@@ -143,7 +141,9 @@ export async function updateOffer(productId: string, offerId: string, input: Upd
       ...(input.currency !== undefined ? { currency: input.currency } : {}),
       ...(affiliateUrl !== undefined ? { affiliateUrl } : {}),
       ...(input.externalId !== undefined ? { externalId: input.externalId ?? "" } : {}),
-      ...(input.inStock !== undefined ? { inStock: input.inStock } : {}),
+      ...(input.inStock !== undefined
+        ? { inStock: input.inStock, availability: input.inStock ? "IN_STOCK" : "OUT_OF_STOCK" }
+        : {}),
       ...(input.isPrimary !== undefined ? { isPrimary: input.isPrimary } : {}),
       lastCheckedAt: new Date(),
     },
@@ -151,18 +151,9 @@ export async function updateOffer(productId: string, offerId: string, input: Upd
   });
 
   if (input.price !== undefined && input.price !== Number(existing.price)) {
-    await snapshotPrice(offer.id, input.price, input.currency ?? existing.currency);
-  }
-
-  if (offer.isPrimary && offer.price != null) {
-    await prisma.product.update({
-      where: { id: productId },
-      data: {
-        price: offer.price,
-        originalPrice: offer.originalPrice,
-        currency: offer.currency,
-        affiliateUrl: offer.affiliateUrl,
-      },
+    await snapshotPrice(offer.id, input.price, input.currency ?? existing.currency, {
+      originalPrice: input.originalPrice ?? Number(existing.originalPrice) ?? null,
+      inStock: offer.inStock,
     });
   }
 

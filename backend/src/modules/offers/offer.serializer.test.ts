@@ -14,6 +14,10 @@ const offer = {
   inStock: true,
   isPrimary: true,
   lastCheckedAt: null,
+  lastSuccessfulFetchAt: null,
+  fetchStatus: "NEVER",
+  availability: "UNKNOWN",
+  productUrl: "https://www.hostinger.com/vps",
   createdAt: new Date("2026-01-01T00:00:00.000Z"),
   updatedAt: new Date("2026-01-01T00:00:00.000Z"),
   merchant: {

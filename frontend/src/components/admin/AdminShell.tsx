@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { LogoutButton } from "@/components/admin/LogoutButton";
+import { SITE_NAME } from "@/lib/site";
 
 const links = [
   { href: "/admin/products", label: "Products" },
@@ -12,6 +13,9 @@ const links = [
   { href: "/admin/comparisons", label: "Comparisons" },
   { href: "/admin/merchants", label: "Merchants" },
   { href: "/admin/stats", label: "Analytics" },
+  { href: "/admin/alerts", label: "Alerts" },
+  { href: "/admin/ops", label: "Ops" },
+  { href: "/admin/import", label: "Import" },
 ];
 
 export function AdminShell({ children }: { children: React.ReactNode }) {
@@ -19,11 +23,11 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
 
   return (
-    <div className="flex min-h-screen bg-[#eaeded]">
+    <div className="flex min-h-screen bg-mist">
       <aside className="hidden w-56 shrink-0 bg-navy text-white md:block">
         <div className="px-4 py-5">
           <Link href="/admin/products" className="text-lg font-bold">
-            AffiliateHub
+            {SITE_NAME}
           </Link>
           <p className="mt-1 text-xs text-white/70">Admin</p>
         </div>

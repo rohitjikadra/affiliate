@@ -110,6 +110,14 @@ export const env = {
   sessionSecret,
   sessionTtlMs: 7 * 24 * 60 * 60 * 1000,
   amazonAssociateTag: (process.env.AMAZON_ASSOCIATE_TAG ?? "").trim() || null,
+  // Creators API replaces PA-API 5. Empty credentials = tagged /go links only; never scrape.
+  amazonCreatorsCredentialId: (process.env.AMAZON_CREATORS_CREDENTIAL_ID ?? "").trim() || null,
+  amazonCreatorsCredentialSecret: (process.env.AMAZON_CREATORS_CREDENTIAL_SECRET ?? "").trim() || null,
+  amazonCreatorsMarketplace: (process.env.AMAZON_CREATORS_MARKETPLACE ?? "www.amazon.in").trim(),
+  priceHistoryPublic: (process.env.PRICE_HISTORY_PUBLIC ?? "false").toLowerCase() === "true",
+  alertFromEmail: (process.env.ALERT_FROM_EMAIL ?? "").trim() || null,
+  resendApiKey: (process.env.RESEND_API_KEY ?? "").trim() || null,
+  revalidateSecret: (process.env.REVALIDATE_SECRET ?? "").trim() || null,
   trustProxy: readTrustProxy(),
   siteUrl: (process.env.SITE_URL ?? "").trim() || null,
 } as const;

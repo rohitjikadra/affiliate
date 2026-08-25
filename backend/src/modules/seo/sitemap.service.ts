@@ -3,7 +3,7 @@ import { prisma } from "../../config/prisma.js";
 export async function listSitemapEntities() {
   const [products, categories, guides, comparisons] = await Promise.all([
     prisma.product.findMany({
-      where: { isActive: true },
+      where: { isActive: true, status: "PUBLISHED" },
       select: { slug: true, updatedAt: true },
     }),
     prisma.category.findMany({

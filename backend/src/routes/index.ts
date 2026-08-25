@@ -11,13 +11,17 @@ import { comparisonRouter } from "../modules/comparisons/comparison.routes.js";
 import { goRouter } from "../modules/clicks/go.routes.js";
 import { pageViewRouter } from "../modules/analytics/pageview.routes.js";
 import { sitemapRouter } from "../modules/seo/sitemap.routes.js";
+import { alertRouter } from "../modules/alerts/alert.routes.js";
+import { opsRouter } from "../modules/ops/ops.routes.js";
 
 export const apiRouter = Router();
 
 apiRouter.use("/health", healthRouter);
 apiRouter.use("/auth", authRouter);
 apiRouter.use("/admin/stats", statsRouter);
+apiRouter.use("/admin/ops", opsRouter);
 apiRouter.use("/admin", adminRouter);
+apiRouter.use("/alerts", alertRouter);
 apiRouter.use("/sitemap", sitemapRouter);
 apiRouter.use("/pageviews", pageViewRouter);
 apiRouter.use("/go", goRouter);

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import type { Product } from "@/types/product";
 import { ApiError } from "@/types/product";
-import { deleteProduct, setProductStatus } from "@/lib/api";
+import { deleteProduct, publishProduct, setProductStatus } from "@/lib/api";
 import { redirectToLogin } from "@/lib/admin";
 import { formatOptionalMoney } from "@/lib/money";
 
@@ -34,6 +34,30 @@ export function ProductTable({ initialProducts }: ProductTableProps) {
         return;
       }
       setError(err instanceof ApiError ? err.message : "Could not update product status.");
+    } finally {
+      setPendingId(null);
+    }
+  }
+
+  async function onPublish(product: Product) {
+    setPendingId(product.id);
+    setError("");
+
+    try {
+      const published = await publishProduct(product.id);
+      setProducts((current) =>
+        current.map((item) =>
+          item.id === published.id
+            ? { ...item, status: published.status as Product["status"], isActive: true }
+            : item,
+        ),
+      );
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401) {
+        redirectToLogin();
+        return;
+      }
+      setError(err instanceof ApiError ? err.message : "Could not publish product.");
     } finally {
       setPendingId(null);
     }
@@ -118,10 +142,12 @@ export function ProductTable({ initialProducts }: ProductTableProps) {
                 <td className="px-4 py-3">
                   <span
                     className={`rounded-full px-2 py-1 text-xs font-medium ${
-                      product.isActive ? "bg-emerald-50 text-emerald-700" : "bg-neutral-100 text-neutral-500"
+                      product.status === "PUBLISHED" && product.isActive
+                        ? "bg-emerald-50 text-emerald-700"
+                        : "bg-neutral-100 text-neutral-500"
                     }`}
                   >
-                    {product.isActive ? "Active" : "Inactive"}
+                    {product.status === "PUBLISHED" ? (product.isActive ? "Published" : "Inactive") : product.status}
                   </span>
                 </td>
                 <td className="px-4 py-3">
@@ -138,6 +164,16 @@ export function ProductTable({ initialProducts }: ProductTableProps) {
                     >
                       Edit
                     </Link>
+                    {product.status !== "PUBLISHED" ? (
+                      <button
+                        type="button"
+                        disabled={pendingId === product.id}
+                        onClick={() => void onPublish(product)}
+                        className="rounded-md border border-navy px-3 py-1.5 text-xs font-medium text-navy hover:bg-mist disabled:opacity-60"
+                      >
+                        Publish
+                      </button>
+                    ) : null}
                     <button
                       type="button"
                       disabled={pendingId === product.id}

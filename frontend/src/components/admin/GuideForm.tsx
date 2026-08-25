@@ -89,7 +89,7 @@ export function GuideForm({ mode, categories, guide }: GuideFormProps) {
         await updateGuide(guide.id, payload);
       }
       const prefix = values.kind === "BEST_OF" ? "/best" : "/guides";
-      await revalidateShop(["/guides", `${prefix}/${values.slug.trim() || guide?.slug || ""}`]);
+      await revalidateShop(["/guides", "/best", `${prefix}/${values.slug.trim() || guide?.slug || ""}`]);
       router.push("/admin/guides");
       router.refresh();
     } catch (error) {

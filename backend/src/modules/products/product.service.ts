@@ -90,6 +90,71 @@ function adminSerializeOptions(includeAffiliateUrl: boolean, includeClickCount =
   return { includeAffiliateUrl, includeClickCount };
 }
 
+function rankByIds<T extends { id: string }>(items: T[], ids: string[]): T[] {
+  const byId = new Map(items.map((item) => [item.id, item]));
+  return ids.flatMap((id) => {
+    const item = byId.get(id);
+    return item ? [item] : [];
+  });
+}
+
+async function rankedProductIds(
+  sort: ListProductsQuery["sort"],
+  where: Prisma.ProductWhereInput,
+): Promise<string[] | null> {
+  if (sort !== "trending" && sort !== "drops") {
+    return null;
+  }
+
+  if (sort === "trending") {
+    const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const views = await prisma.pageView.groupBy({
+      by: ["entityId"],
+      where: {
+        entityType: "product",
+        entityId: { not: null },
+        createdAt: { gte: since },
+      },
+      _count: { _all: true },
+    });
+    const ranked = views
+      .filter((row): row is { entityId: string; _count: { _all: number } } => Boolean(row.entityId))
+      .sort((left, right) => right._count._all - left._count._all)
+      .map((row) => row.entityId);
+    if (ranked.length === 0) {
+      return [];
+    }
+    const eligible = await prisma.product.findMany({
+      where: { ...where, id: { in: ranked } },
+      select: { id: true },
+    });
+    return rankByIds(eligible, ranked).map((row) => row.id);
+  }
+
+  const events = await prisma.priceEvent.findMany({
+    where: { type: "DROP" },
+    orderBy: [{ percent: "asc" }, { createdAt: "desc" }],
+    select: { productId: true },
+  });
+  const ranked: string[] = [];
+  const seen = new Set<string>();
+  for (const event of events) {
+    if (seen.has(event.productId)) {
+      continue;
+    }
+    seen.add(event.productId);
+    ranked.push(event.productId);
+  }
+  if (ranked.length === 0) {
+    return [];
+  }
+  const eligible = await prisma.product.findMany({
+    where: { ...where, id: { in: ranked } },
+    select: { id: true },
+  });
+  return rankByIds(eligible, ranked).map((row) => row.id);
+}
+
 export async function listProducts(
   query: ListProductsQuery = {},
   options: { includeAffiliateUrl?: boolean; includeClickCount?: boolean; includeInactiveOffers?: boolean } = {},
@@ -97,8 +162,8 @@ export async function listProducts(
   const includeClickCount = options.includeClickCount ?? false;
   const includeAffiliateUrl = options.includeAffiliateUrl ?? false;
   const { skip, take, page, limit } = normalizePagination(query);
-  const where = {
-    ...(query.includeInactive ? {} : { isActive: true }),
+  const where: Prisma.ProductWhereInput = {
+    ...(query.includeInactive ? {} : { isActive: true, status: "PUBLISHED" as const }),
     ...(query.featured ? { featured: true } : {}),
     ...(query.category ? { category: { slug: query.category } } : {}),
     ...(query.q
@@ -106,27 +171,50 @@ export async function listProducts(
           OR: [
             { title: { contains: query.q, mode: "insensitive" as const } },
             { description: { contains: query.q, mode: "insensitive" as const } },
+            { brand: { contains: query.q, mode: "insensitive" as const } },
+            { modelNumber: { contains: query.q, mode: "insensitive" as const } },
+            { identifiers: { some: { value: { contains: query.q, mode: "insensitive" as const } } } },
           ],
         }
       : {}),
   };
 
-  const [products, total] = await Promise.all([
-    prisma.product.findMany({
-      where,
-      include: {
-        ...(includeAffiliateUrl ? adminProductInclude : productInclude),
-        ...(includeClickCount ? { _count: { select: { clicks: true } } } : {}),
-      },
-      orderBy: [{ featured: "desc" }, { createdAt: "desc" }],
-      skip,
-      take,
-    }),
-    prisma.product.count({ where }),
-  ]);
+  const rankedIds = await rankedProductIds(query.sort, where);
+  if (rankedIds && rankedIds.length === 0) {
+    return { items: [], meta: paginationMeta(0, page, limit) };
+  }
+
+  const listWhere: Prisma.ProductWhereInput = rankedIds ? { ...where, id: { in: rankedIds } } : where;
+  const include = {
+    ...(includeAffiliateUrl ? adminProductInclude : productInclude),
+    ...(includeClickCount ? { _count: { select: { clicks: true } } } : {}),
+  };
+
+  const [products, total] = rankedIds
+    ? await Promise.all([
+        prisma.product.findMany({
+          where: { id: { in: rankedIds.slice(skip, skip + take) } },
+          include,
+        }),
+        Promise.resolve(rankedIds.length),
+      ])
+    : await Promise.all([
+        prisma.product.findMany({
+          where: listWhere,
+          include,
+          orderBy: [{ featured: "desc" }, { createdAt: "desc" }],
+          skip,
+          take,
+        }),
+        prisma.product.count({ where: listWhere }),
+      ]);
+
+  const ordered = rankedIds
+    ? rankByIds(products, rankedIds.slice(skip, skip + take))
+    : products;
 
   return {
-    items: products.map((product) =>
+    items: ordered.map((product) =>
       serializeProduct(product as never, adminSerializeOptions(includeAffiliateUrl, includeClickCount)),
     ),
     meta: paginationMeta(total, page, limit),
@@ -169,7 +257,7 @@ export async function getProductByIdOrSlug(
     throw new AppError(404, "NOT_FOUND", "Product not found");
   }
 
-  if (!options.isAdmin && !product.isActive) {
+  if (!options.isAdmin && (!product.isActive || product.status !== "PUBLISHED")) {
     throw new AppError(404, "NOT_FOUND", "Product not found");
   }
 
@@ -186,6 +274,7 @@ export async function createProduct(input: CreateProductInput) {
       title: input.title,
       slug,
       description: input.description,
+      features: input.features,
       pros: input.pros,
       cons: input.cons,
       bestFor: input.bestFor,
@@ -211,6 +300,10 @@ export async function createProduct(input: CreateProductInput) {
       seoDescription: input.seoDescription,
       featured: input.featured,
       isActive: input.isActive,
+      modelNumber: input.modelNumber,
+      whoShouldAvoid: input.whoShouldAvoid,
+      status: input.status ?? "PUBLISHED",
+      publishedAt: (input.status ?? "PUBLISHED") === "PUBLISHED" ? new Date() : null,
       categoryId: input.categoryId,
     },
     include: adminProductInclude,
@@ -246,6 +339,7 @@ export async function updateProduct(id: string, input: UpdateProductInput) {
       ...(input.title !== undefined ? { title: input.title } : {}),
       ...(slug !== undefined ? { slug } : {}),
       ...(input.description !== undefined ? { description: input.description } : {}),
+      ...(input.features !== undefined ? { features: input.features } : {}),
       ...(input.pros !== undefined ? { pros: input.pros } : {}),
       ...(input.cons !== undefined ? { cons: input.cons } : {}),
       ...(input.bestFor !== undefined ? { bestFor: input.bestFor } : {}),
@@ -273,6 +367,14 @@ export async function updateProduct(id: string, input: UpdateProductInput) {
       ...(input.seoDescription !== undefined ? { seoDescription: input.seoDescription } : {}),
       ...(input.featured !== undefined ? { featured: input.featured } : {}),
       ...(input.isActive !== undefined ? { isActive: input.isActive } : {}),
+      ...(input.modelNumber !== undefined ? { modelNumber: input.modelNumber } : {}),
+      ...(input.whoShouldAvoid !== undefined ? { whoShouldAvoid: input.whoShouldAvoid } : {}),
+      ...(input.status !== undefined
+        ? {
+            status: input.status,
+            publishedAt: input.status === "PUBLISHED" ? new Date() : null,
+          }
+        : {}),
       ...(input.categoryId !== undefined ? { categoryId: input.categoryId } : {}),
     },
     include: adminProductInclude,
@@ -286,7 +388,15 @@ export async function setProductStatus(id: string, input: ProductStatusInput) {
 
   const product = await prisma.product.update({
     where: { id },
-    data: { isActive: input.isActive },
+    data: {
+      isActive: input.isActive,
+      ...(input.status !== undefined
+        ? {
+            status: input.status,
+            publishedAt: input.status === "PUBLISHED" ? new Date() : undefined,
+          }
+        : {}),
+    },
     include: adminProductInclude,
   });
 
@@ -303,6 +413,7 @@ export async function listRelatedProducts(productId: string, categoryId: string 
   const products = await prisma.product.findMany({
     where: {
       isActive: true,
+      status: "PUBLISHED",
       id: { not: productId },
       ...(categoryId ? { categoryId } : {}),
     },

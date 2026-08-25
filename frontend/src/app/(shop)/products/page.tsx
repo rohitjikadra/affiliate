@@ -5,6 +5,7 @@ import { SearchBar } from "@/components/home/SearchBar";
 import { ProductGrid } from "@/components/product/ProductGrid";
 import { listProducts } from "@/lib/api";
 import { publicMetadata } from "@/lib/seo";
+import { SITE_NAME } from "@/lib/site";
 import type { Metadata } from "next";
 
 type ProductsPageProps = {
@@ -19,8 +20,8 @@ export async function generateMetadata({ searchParams }: ProductsPageProps): Pro
   return publicMetadata({
     title: query ? `Search: ${query}` : "All products",
     description: query
-      ? `Search results for ${query} on AffiliateHub.`
-      : "Browse active products with editorial scores and merchant offers.",
+      ? `Search results for ${query} on ${SITE_NAME}. Search title, brand, or model.`
+      : "Search kitchen appliances by title, brand, or model. Editorial scores and current merchant offers.",
     path: query ? `/products?q=${encodeURIComponent(query)}` : "/products",
     noIndex: Boolean(query),
   });
@@ -43,7 +44,9 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
         <div className="rounded-md bg-white px-4 py-5 sm:px-6">
           <h1 className="text-2xl font-bold text-navy">{query ? `Results for “${query}”` : "All products"}</h1>
           <p className="mt-1 text-sm text-neutral-600">
-            {query ? `${meta.total} matching ${meta.total === 1 ? "product" : "products"}` : "Browse active products in the catalog."}
+            {query
+              ? `${meta.total} matching ${meta.total === 1 ? "product" : "products"}`
+              : "Search title, brand, or model. Browse active products in the catalog."}
           </p>
           <div className="mt-4 md:hidden">
             <SearchBar defaultValue={query} />

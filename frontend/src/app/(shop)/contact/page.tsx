@@ -3,10 +3,11 @@ import Link from "next/link";
 import { ContactForm } from "@/components/legal/ContactForm";
 import { contactEmail } from "@/lib/contact";
 import { publicMetadata } from "@/lib/seo";
+import { SITE_NAME } from "@/lib/site";
 
 export const metadata: Metadata = publicMetadata({
   title: "Contact",
-  description: "How to reach AffiliateHub about the catalog, guides, or affiliate links.",
+  description: `How to reach ${SITE_NAME} about the catalog, guides, or affiliate links.`,
   path: "/contact",
 });
 

@@ -1,5 +1,9 @@
 export type ProductSource = "MANUAL" | "AMAZON" | "FLIPKART";
 export type MerchantKind = "MARKETPLACE" | "DIRECT" | "NETWORK";
+export type ProductStatus = "DRAFT" | "REVIEW" | "PUBLISHED" | "ARCHIVED";
+export type OfferFetchStatus = "NEVER" | "QUEUED" | "SUCCESS" | "RATE_LIMITED" | "ERROR" | "UNAVAILABLE" | "INVALID";
+export type AvailabilityStatus = "IN_STOCK" | "OUT_OF_STOCK" | "UNKNOWN";
+export type FreshnessLevel = "fresh" | "aging" | "stale" | "unknown";
 export type GuideKind = "ARTICLE" | "BEST_OF";
 export type GuideProductBadge =
   | "BEST_OVERALL"
@@ -57,11 +61,17 @@ export type Offer = {
   originalPrice: string | null;
   currency: string;
   affiliateUrl: string | null;
+  productUrl: string | null;
   externalId: string | null;
   inStock: boolean;
   isPrimary: boolean;
   available: boolean;
   lastCheckedAt: string | null;
+  lastSuccessfulFetchAt: string | null;
+  fetchStatus: OfferFetchStatus;
+  availability: AvailabilityStatus;
+  freshness: FreshnessLevel;
+  freshnessLabel: string;
   updatedAt: string;
 };
 
@@ -80,11 +90,16 @@ export type Product = {
   slug: string;
   title: string;
   description: string | null;
+  features: string | null;
   pros: string | null;
   cons: string | null;
   bestFor: string | null;
   faq: string | null;
   brand: string | null;
+  modelNumber: string | null;
+  whoShouldAvoid: string | null;
+  status: ProductStatus;
+  publishedAt: string | null;
   warranty: string | null;
   specs: SpecItem[];
   scoreBreakdown: ScoreBreakdownItem[];
@@ -95,6 +110,10 @@ export type Product = {
   ourScore: string | null;
   currency: string;
   lastCheckedAt: string | null;
+  freshness: FreshnessLevel;
+  freshnessLabel: string;
+  bestOfferId: string | null;
+  offerCount: number;
   affiliateUrl: string | null;
   source: ProductSource;
   store: string;
@@ -127,11 +146,14 @@ export type ProductPayload = {
   title: string;
   slug?: string;
   description?: string | null;
+  features?: string | null;
   pros?: string | null;
   cons?: string | null;
   bestFor?: string | null;
   faq?: string | null;
   brand?: string | null;
+  modelNumber?: string | null;
+  whoShouldAvoid?: string | null;
   warranty?: string | null;
   specs?: SpecItem[] | null;
   scoreBreakdown?: ScoreBreakdownItem[] | null;
@@ -148,6 +170,7 @@ export type ProductPayload = {
   seoDescription?: string | null;
   featured: boolean;
   isActive: boolean;
+  status?: ProductStatus;
   categoryId?: string | null;
 };
 

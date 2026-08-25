@@ -17,6 +17,11 @@ function amazonImage(asin) {
 }
 
 async function seed() {
+  await prisma.priceAlert.deleteMany();
+  await prisma.priceEvent.deleteMany();
+  await prisma.job.deleteMany();
+  await prisma.workerHeartbeat.deleteMany();
+  await prisma.productIdentifier.deleteMany();
   await prisma.comparisonItem.deleteMany();
   await prisma.comparison.deleteMany();
   await prisma.guideProduct.deleteMany();
@@ -38,6 +43,11 @@ async function seed() {
       network: "AMAZON",
       websiteUrl: "https://www.amazon.in",
       isActive: true,
+      defaultTag: process.env.AMAZON_ASSOCIATE_TAG?.trim() || null,
+      integrationKey: "AMAZON_IN",
+      hostAllowlist: ["amazon.in", "www.amazon.in", "amzn.in", "amzn.to", "amazon.com", "www.amazon.com"],
+      fetchEnabled: false,
+      rateLimitPerSecond: 1,
       disclosure: "As an Amazon Associate we earn from qualifying purchases.",
     },
   });
@@ -316,20 +326,35 @@ async function seed() {
     },
     {
       slug: "prestige-pgmfb-sandwich-toaster",
-      title: "Prestige PGMFB 800W Grill Sandwich Toaster",
+      title: "Prestige PGMFB 800 Watt Grill Sandwich Toaster with Fixed Grill Plates, Black",
       brand: "Prestige",
       asin: "B00935MGKK",
       description:
         "An 800W fixed-plate grill sandwich toaster with non-stick plates. It makes two toasted sandwiches. It is not a toaster oven and not a grill for large batches of vegetables.",
+      features:
+        "POWERFUL 800W PERFORMANCE: Equipped with an 800-watt heating element that ensures grilling giving you perfectly crisp sandwiches in minutes.\nNON-STICK GRILL PLATES: Durable die-cast non-stick heating plates allow easy release of food, require minimal oil for healthier sandwiches, and make cleaning effortless after every use.\nHEAT-RESISTANT BAKELITE BODY: Elegant black finish body made from high-quality heat-resistant Bakelite ensures safe handling even during high-temperature operation, while adding a sleek look to your kitchen.\nAUTO CUT-OFF FEATURE: Automatically switches off when the food is cooked, preventing overheating and ensuring energy efficiency for safe, worry-free usage.\nPOWER & READY INDICATOR LIGHTS: Convenient indicator lights show when the device is powered on and when it’s ready to cook, ensuring precise timing for perfect grilling.\nERGONOMIC HANDLE & EASY STORAGE: Cool-touch ergonomic handle provides a firm grip while operating; compact design makes it easy to store vertically or horizontally.\nEASY TO CLEAN: Smooth non-stick plates and sleek body design enable quick cleaning with minimal effort after each use.\nWARRANTY & CERTIFICATION: Comes with a 1-year manufacturer warranty for reliable performance; ISI certified for quality, durability, and safety compliance.",
       bestFor: "Breakfast sandwiches for 1–2 people who want a cheap dedicated toaster.",
       pros: "800W with non-stick grill plates\n1-year warranty and ISI mention on the listing\nSmall footprint",
       cons: "Fixed plates — you cannot swap waffle plates on this model\nEasy to overfill and leak filling\nNot for a large family breakfast rush",
-      faq: "Oil needed?\nThe listing highlights non-stick plates. A light brush of oil still helps some breads.\n\nWarranty?\n1-year manufacturer warranty as listed.",
-      warranty: "1-year manufacturer warranty (as listed on Amazon.in)",
+      faq: "Oil needed?\nThe listing highlights non-stick plates. A light brush of oil still helps some breads.\n\nWarranty?\n1-year manufacturer warranty as listed.\n\nDoes it have interchangeable plates?\nNo. PGMFB has fixed grill plates.\n\nHow many sandwiches at a time?\nTwo slices, as listed. It is for 1–2 people, not a family breakfast rush.",
+      warranty: "1-year manufacturer warranty (Customer care: 080-46824000)",
       specs: [
+        { label: "Model", value: "PGMFB" },
         { label: "Wattage", value: "800 W" },
-        { label: "Plates", value: "Fixed non-stick grill plates" },
+        { label: "Voltage", value: "230 V" },
+        { label: "Slice capacity", value: "2" },
+        { label: "Plates", value: "Fixed die-cast non-stick grill" },
         { label: "Body", value: "Heat-resistant Bakelite" },
+        { label: "Colour", value: "Black" },
+        { label: "Material", value: "Aluminium" },
+        { label: "Special feature", value: "Non-stick coating" },
+        { label: "Dimensions", value: "9.4 × 10.6 × 11.8 cm" },
+        { label: "Item weight", value: "1.19 kg" },
+        { label: "Included", value: "Sandwich maker" },
+        { label: "Country of origin", value: "India" },
+        { label: "Manufacturer", value: "TTK Prestige Pvt Ltd" },
+        { label: "Part number", value: "41467" },
+        { label: "ASIN", value: "B00935MGKK" },
       ],
       scoreBreakdown: [
         { label: "Toast quality", score: 7.6 },
@@ -344,7 +369,65 @@ async function seed() {
     },
   ];
 
+  const editorial: Record<string, { modelNumber: string; whoShouldAvoid: string }> = {
+    "prestige-iris-750w-mixer-grinder": {
+      modelNumber: "Iris 750W 4 Jar",
+      whoShouldAvoid: "Skip this if you need a quiet smoothie blender or a stone wet grinder for large dosa batter batches.",
+    },
+    "bajaj-rex-500w-mixer-grinder": {
+      modelNumber: "Rex 500W 3 Jar",
+      whoShouldAvoid: "Not for daily dry masala grinding in large loads — 500W is for light chutney and small wet batches.",
+    },
+    "preethi-blue-leaf-gold-750w": {
+      modelNumber: "Blue Leaf Gold 5.0",
+      whoShouldAvoid: "Avoid if you want four physical jars or a silent blender; this is still a loud 3-jar mixie.",
+    },
+    "philips-hd9252-air-fryer": {
+      modelNumber: "HD9252/90",
+      whoShouldAvoid: "Too small as a full OTG replacement for large baking trays or a joint-family dinner in one batch.",
+    },
+    "pigeon-healthifry-4-2l-air-fryer": {
+      modelNumber: "Healthifry 4.2L",
+      whoShouldAvoid: "Skip if you cook daily at 1400W-class speed; 1200W is slower and the coating is budget-grade.",
+    },
+    "prestige-pic-20-induction-cooktop": {
+      modelNumber: "PIC 20",
+      whoShouldAvoid: "Will not heat aluminium or non-magnetic cookware, and it is not a replacement for a 2-burner stove.",
+    },
+    "pigeon-favourite-1800w-induction": {
+      modelNumber: "Favourite 1800W",
+      whoShouldAvoid: "Needs a circuit that can take 1800W and induction-ready pans; still one zone only.",
+    },
+    "prestige-pkoss-15l-kettle": {
+      modelNumber: "PKOSS 1.5L",
+      whoShouldAvoid: "Not for large family tea rounds or milk that can boil over; 1.5L water-only use is the fit.",
+    },
+    "philips-hr2533-hand-blender": {
+      modelNumber: "HR2533",
+      whoShouldAvoid: "Cannot replace a mixie for dry spices or chutney; it is a stick blender for wet pots.",
+    },
+    "prestige-pgmfb-sandwich-toaster": {
+      modelNumber: "PGMFB",
+      whoShouldAvoid: "Fixed plates cannot grill paneer tikka or toast a family loaf; it is a two-slice sandwich toaster.",
+    },
+  };
+
+  // Current MANUAL street-price observations for V1 tagged /go links. Not price history.
+  const seedPrices: Record<string, number> = {
+    B08CFJBZRK: 4299,
+    B00HVXS7WC: 2199,
+    B0098ZXJ4C: 5499,
+    B097RJ867P: 7999,
+    B0B8XNPQPN: 4499,
+    B00YMJ0OI8: 2499,
+    B012VFOQDI: 1899,
+    B00YD54UIC: 899,
+    B07DJ5B3X8: 1799,
+    B00935MGKK: 1099,
+  };
+
   const productIds = new Map<string, string>();
+  const observedAt = new Date();
 
   for (const item of products) {
     const record = await prisma.product.create({
@@ -352,11 +435,14 @@ async function seed() {
         slug: item.slug,
         title: item.title,
         brand: item.brand,
+        modelNumber: editorial[item.slug]?.modelNumber,
+        whoShouldAvoid: editorial[item.slug]?.whoShouldAvoid,
         description: item.description,
         bestFor: item.bestFor,
         pros: item.pros,
         cons: item.cons,
         faq: item.faq,
+        features: "features" in item ? item.features : undefined,
         warranty: item.warranty,
         specs: item.specs,
         scoreBreakdown: item.scoreBreakdown,
@@ -368,18 +454,33 @@ async function seed() {
         sourceId: item.asin,
         featured: Boolean(item.featured),
         isActive: true,
+        status: "PUBLISHED",
+        publishedAt: new Date(),
         categoryId: kitchen.id,
         seoTitle: item.seoTitle,
         seoDescription: item.seoDescription,
+        identifiers: {
+          create: {
+            type: "ASIN",
+            value: item.asin,
+            merchantId: amazon.id,
+          },
+        },
         offers: {
           create: {
             merchantId: amazon.id,
             title: item.offerTitle,
             currency: "INR",
+            price: seedPrices[item.asin],
             affiliateUrl: amazonUrl(item.asin),
+            productUrl: amazonUrl(item.asin),
             externalId: item.asin,
             inStock: true,
             isPrimary: true,
+            availability: "IN_STOCK",
+            lastCheckedAt: observedAt,
+            nextFetchAt: observedAt,
+            fetchStatus: "NEVER",
           },
         },
       },

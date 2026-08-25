@@ -29,6 +29,10 @@ export type HealthResponse = {
     database: {
       status: "up" | "down";
     };
+    worker?: {
+      status: "up" | "down";
+      lastSeenAt?: string | null;
+    };
   };
 };
 
@@ -112,6 +116,7 @@ export type ListProductsQuery = {
   category?: string;
   featured?: boolean;
   includeInactive?: boolean;
+  sort?: "trending" | "drops";
   page?: number;
   limit?: number;
 };
@@ -160,6 +165,7 @@ export async function listProducts(
   if (query.category) params.set("category", query.category);
   if (query.featured) params.set("featured", "true");
   if (query.includeInactive) params.set("includeInactive", "true");
+  if (query.sort) params.set("sort", query.sort);
   if (query.page) params.set("page", String(query.page));
   if (query.limit) params.set("limit", String(query.limit));
 
@@ -174,6 +180,30 @@ export async function listProducts(
 
 export async function getProduct(idOrSlug: string): Promise<Product> {
   const result = await request<Product>(`/api/products/${encodeURIComponent(idOrSlug)}`);
+  return result.data;
+}
+
+export type PriceHistoryPoint = {
+  offerId: string;
+  price: number;
+  currency: string;
+  recordedAt: string;
+};
+
+export type PriceHistory = {
+  enabled: boolean;
+  points: PriceHistoryPoint[];
+  stats: { low: number; high: number; average: number; count: number; label: string } | null;
+};
+
+export async function getPriceHistory(
+  idOrSlug: string,
+  range: "7d" | "30d" | "90d" = "90d",
+): Promise<PriceHistory> {
+  const result = await request<PriceHistory>(
+    `/api/products/${encodeURIComponent(idOrSlug)}/price-history?range=${range}`,
+    { revalidate: 120 },
+  );
   return result.data;
 }
 
@@ -264,7 +294,7 @@ export async function getAdminSession(): Promise<boolean> {
     await request<{ ok: true }>("/api/auth/me", { revalidate: false });
     return true;
   } catch (error) {
-    if (error instanceof ApiError && error.status === 401) {
+    if (error instanceof ApiError && (error.status === 401 || error.status === 404)) {
       return false;
     }
     throw error;
@@ -308,10 +338,176 @@ export async function getClickStats(): Promise<ClickStats> {
   return result.data;
 }
 
-export type AdminConfig = { amazonAssociateTag: string | null };
+export type AdminConfig = {
+  amazonAssociateTag: string | null;
+  creatorsConfigured: boolean;
+  priceHistoryPublic: boolean;
+};
 
 export async function getAdminConfig(): Promise<AdminConfig> {
   const result = await request<AdminConfig>("/api/admin/config", { revalidate: false });
+  return result.data;
+}
+
+export type DiscoveryCandidate = {
+  externalId: string;
+  title: string;
+  brand: string | null;
+  imageUrl: string | null;
+  price: number | null;
+  currency: string;
+};
+
+export type CatalogSearchResult = {
+  enabled: boolean;
+  items: DiscoveryCandidate[];
+};
+
+export async function searchCatalog(query: string): Promise<CatalogSearchResult> {
+  const params = new URLSearchParams({ q: query });
+  const result = await request<CatalogSearchResult>(`/api/admin/ops/products/search?${params.toString()}`, {
+    revalidate: false,
+  });
+  return result.data;
+}
+
+export type ImportAsinsResult = {
+  created: { id: string; slug: string; asin: string; status: string }[];
+  attached: { productId: string; asin: string; action: "attach-offer" | "refresh-offer" }[];
+};
+
+export async function importAsins(asins: string[], categoryId?: string): Promise<ImportAsinsResult> {
+  const result = await request<ImportAsinsResult>("/api/admin/ops/products/import", {
+    method: "POST",
+    body: JSON.stringify({ asins, categoryId }),
+  });
+  return result.data;
+}
+
+export async function publishProduct(id: string): Promise<{ id: string; status: string }> {
+  const result = await request<{ id: string; status: string }>(`/api/admin/ops/products/${id}/publish`, {
+    method: "POST",
+  });
+  return result.data;
+}
+
+export type AlertType = "TARGET_PRICE" | "PERCENT_DROP" | "NEW_LOW";
+
+export type PriceAlertPayload = {
+  productId: string;
+  email: string;
+  type: AlertType;
+  targetPrice?: number;
+  percentThreshold?: number;
+};
+
+export async function createPriceAlert(payload: PriceAlertPayload): Promise<{ id: string; email: string; productId: string }> {
+  const result = await request<{ id: string; email: string; productId: string }>("/api/alerts", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+  return result.data;
+}
+
+export async function confirmPriceAlert(token: string): Promise<{ ok: true }> {
+  const params = new URLSearchParams({ token });
+  const result = await request<{ ok: true }>(`/api/alerts/verify?${params.toString()}`, { revalidate: false });
+  return result.data;
+}
+
+export async function unsubscribePriceAlert(token: string): Promise<{ ok: true }> {
+  const params = new URLSearchParams({ token });
+  const result = await request<{ ok: true }>(`/api/alerts/unsubscribe?${params.toString()}`, { revalidate: false });
+  return result.data;
+}
+
+export type AdminPriceAlert = {
+  id: string;
+  email: string;
+  type: AlertType;
+  targetPrice: string | null;
+  percentThreshold: string | null;
+  isActive: boolean;
+  emailVerifiedAt: string | null;
+  lastTriggeredAt: string | null;
+  createdAt: string;
+  offerId: string | null;
+  product: { id: string; title: string; slug: string };
+};
+
+export async function getAdminAlerts(): Promise<AdminPriceAlert[]> {
+  const result = await request<AdminPriceAlert[]>("/api/admin/ops/alerts", { revalidate: false });
+  return result.data;
+}
+
+export type OpsOverview = {
+  pendingJobs: number;
+  deadJobs: number;
+  staleOffers: number;
+  failedOffers: number;
+  queuedOffers: number;
+  activeAlerts: number;
+  snapshotCount: number;
+  priceEventsLast24h: number;
+  retainDays: number;
+  worker: { status: "up" | "down"; lastSeenAt: string | null };
+};
+
+export type OpsOffer = {
+  id: string;
+  price: string | null;
+  currency: string;
+  fetchStatus: string;
+  fetchError: string | null;
+  consecutiveFailures: number;
+  lastSuccessfulFetchAt: string | null;
+  nextFetchAt: string | null;
+  product: { id: string; slug: string; title: string };
+  merchant: { name: string; slug: string };
+};
+
+export type OpsJob = {
+  id: string;
+  type: string;
+  status: string;
+  attempts: number;
+  maxAttempts: number;
+  lastError: string | null;
+  runAfter: string | null;
+  createdAt: string | null;
+  completedAt: string | null;
+};
+
+export async function getOpsOverview(): Promise<OpsOverview> {
+  const result = await request<OpsOverview>("/api/admin/ops/overview", { revalidate: false });
+  return result.data;
+}
+
+export async function getOpsOffers(freshness: "stale" | "failed" | "queued" = "stale"): Promise<OpsOffer[]> {
+  const params = new URLSearchParams({ freshness });
+  const result = await request<OpsOffer[]>(`/api/admin/ops/offers?${params.toString()}`, { revalidate: false });
+  return result.data;
+}
+
+export async function refreshOpsOffer(id: string): Promise<{ id: string }> {
+  const result = await request<{ id: string }>(`/api/admin/ops/offers/${id}/refresh`, { method: "POST" });
+  return result.data;
+}
+
+export async function getOpsJobs(): Promise<OpsJob[]> {
+  const result = await request<OpsJob[]>("/api/admin/ops/jobs", { revalidate: false });
+  return result.data;
+}
+
+export async function retryOpsJob(id: string): Promise<{ id: string; retried: true }> {
+  const result = await request<{ id: string; retried: true }>(`/api/admin/ops/jobs/${id}/retry`, { method: "POST" });
+  return result.data;
+}
+
+export async function compactSnapshots(): Promise<{ deleted: number; retainDays: number }> {
+  const result = await request<{ deleted: number; retainDays: number }>("/api/admin/ops/snapshots/compact", {
+    method: "POST",
+  });
   return result.data;
 }
 

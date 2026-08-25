@@ -9,7 +9,11 @@ export function TrackPageView(props: {
   entityId?: string;
 }) {
   useEffect(() => {
-    void recordPageView(props);
+    void recordPageView({
+      path: props.path,
+      entityType: props.entityType,
+      entityId: props.entityId,
+    });
   }, [props.path, props.entityType, props.entityId]);
 
   return null;

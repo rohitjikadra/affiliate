@@ -14,7 +14,7 @@ import {
   validateProductForm,
   type ProductFormValues,
 } from "@/lib/product-form";
-import { createProduct, updateProduct } from "@/lib/api";
+import { createProduct, publishProduct, updateProduct } from "@/lib/api";
 import { amazonTagWarning } from "@/lib/amazon";
 import { redirectToLogin } from "@/lib/admin";
 import { revalidateShop } from "@/lib/revalidate-shop";
@@ -30,11 +30,14 @@ const emptyValues: ProductFormValues = {
   title: "",
   slug: "",
   description: "",
+  features: "",
   pros: "",
   cons: "",
   bestFor: "",
   faq: "",
   brand: "",
+  modelNumber: "",
+  whoShouldAvoid: "",
   warranty: "",
   specs: "",
   scoreBreakdown: "",
@@ -50,6 +53,7 @@ const emptyValues: ProductFormValues = {
   seoDescription: "",
   featured: false,
   isActive: true,
+  status: "PUBLISHED",
   categoryId: "",
 };
 
@@ -58,11 +62,14 @@ function valuesFromProduct(product: Product): ProductFormValues {
     title: product.title,
     slug: product.slug,
     description: product.description ?? "",
+    features: product.features ?? "",
     pros: product.pros ?? "",
     cons: product.cons ?? "",
     bestFor: product.bestFor ?? "",
     faq: product.faq ?? "",
     brand: product.brand ?? "",
+    modelNumber: product.modelNumber ?? "",
+    whoShouldAvoid: product.whoShouldAvoid ?? "",
     warranty: product.warranty ?? "",
     specs: specsToText(product.specs),
     scoreBreakdown: scoreBreakdownToText(product.scoreBreakdown),
@@ -78,6 +85,7 @@ function valuesFromProduct(product: Product): ProductFormValues {
     seoDescription: product.seoDescription ?? "",
     featured: product.featured,
     isActive: product.isActive,
+    status: product.status,
     categoryId: product.categoryId ?? "",
   };
 }
@@ -96,6 +104,7 @@ export function ProductForm({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [publishing, setPublishing] = useState(false);
 
   useEffect(() => {
     if (!slugTouched) {
@@ -157,6 +166,28 @@ export function ProductForm({
     }
   }
 
+  async function onPublish() {
+    if (!product) {
+      return;
+    }
+    setPublishing(true);
+    setFormError("");
+    try {
+      await publishProduct(product.id);
+      await revalidateShop(["/products", `/products/${product.slug}`]);
+      router.push("/admin/products");
+      router.refresh();
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401) {
+        redirectToLogin();
+        return;
+      }
+      setFormError(error instanceof ApiError ? error.message : "Could not publish this product.");
+    } finally {
+      setPublishing(false);
+    }
+  }
+
   return (
     <form onSubmit={onSubmit} className="space-y-5 rounded-md border border-neutral-200 bg-white p-5 shadow-sm">
       {formError ? (
@@ -187,6 +218,14 @@ export function ProductForm({
           <input
             value={values.brand}
             onChange={(event) => updateField("brand", event.target.value)}
+            className={inputClass}
+            maxLength={80}
+          />
+        </Field>
+        <Field label="Model number" error={errors.modelNumber} hint="Shown on the product page and used in search.">
+          <input
+            value={values.modelNumber}
+            onChange={(event) => updateField("modelNumber", event.target.value)}
             className={inputClass}
             maxLength={80}
           />
@@ -318,12 +357,39 @@ export function ProductForm({
         />
       </Field>
 
+      <Field
+        label="About this item"
+        error={errors.features}
+        hint="Amazon-style feature bullets. One point per line. Up to 12."
+      >
+        <textarea
+          value={values.features}
+          onChange={(event) => updateField("features", event.target.value)}
+          className={`${inputClass} min-h-28`}
+          maxLength={4000}
+          placeholder={"Non-stick grill plates\nMakes two sandwiches at a time\n800W heating"}
+        />
+      </Field>
+
       <Field label="Best for" error={errors.bestFor}>
         <input
           value={values.bestFor}
           onChange={(event) => updateField("bestFor", event.target.value)}
           className={inputClass}
           maxLength={500}
+        />
+      </Field>
+
+      <Field
+        label="Who should avoid"
+        error={errors.whoShouldAvoid}
+        hint="Honest limits: noise, wattage, capacity, or cookware. Shown on the product page, compare table, and best-of lists."
+      >
+        <textarea
+          value={values.whoShouldAvoid}
+          onChange={(event) => updateField("whoShouldAvoid", event.target.value)}
+          className={`${inputClass} min-h-20`}
+          maxLength={2000}
         />
       </Field>
 
@@ -425,15 +491,41 @@ export function ProductForm({
           Active
         </label>
       </div>
+      <label className="block max-w-xs text-sm font-medium text-neutral-700">
+        Catalog status
+        <select
+          value={values.status}
+          onChange={(event) => updateField("status", event.target.value as ProductFormValues["status"])}
+          className={inputClass}
+        >
+          <option value="DRAFT">Draft</option>
+          <option value="REVIEW">Review</option>
+          <option value="PUBLISHED">Published</option>
+          <option value="ARCHIVED">Archived</option>
+        </select>
+        <span className="mt-1 block text-xs font-normal text-neutral-500">
+          Imports stay Draft until you publish. Shoppers only see Published + Active products.
+        </span>
+      </label>
 
       <div className="flex gap-3">
         <button
           type="submit"
-          disabled={submitting}
+          disabled={submitting || publishing}
           className="rounded-md bg-navy px-5 py-2.5 text-sm font-semibold text-white hover:bg-neutral-800 disabled:opacity-60"
         >
           {submitting ? "Saving…" : mode === "create" ? "Create product" : "Save changes"}
         </button>
+        {mode === "edit" && product && product.status !== "PUBLISHED" ? (
+          <button
+            type="button"
+            disabled={submitting || publishing}
+            onClick={() => void onPublish()}
+            className="rounded-md border border-navy px-5 py-2.5 text-sm font-semibold text-navy hover:bg-mist disabled:opacity-60"
+          >
+            {publishing ? "Publishing…" : "Publish to shop"}
+          </button>
+        ) : null}
         <button
           type="button"
           onClick={() => router.push("/admin/products")}
