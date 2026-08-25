@@ -2,9 +2,11 @@ import Link from "next/link";
 import { CatalogUnavailable } from "@/components/catalog/CatalogUnavailable";
 import { Pagination } from "@/components/catalog/Pagination";
 import { SearchBar } from "@/components/home/SearchBar";
+import { Breadcrumb } from "@/components/layout/Breadcrumb";
 import { ProductGrid } from "@/components/product/ProductGrid";
 import { listProducts } from "@/lib/api";
-import { publicMetadata } from "@/lib/seo";
+import { publicMetadata, jsonLd } from "@/lib/seo";
+import { breadcrumbJsonLd } from "@/lib/json-ld";
 import { SITE_NAME } from "@/lib/site";
 import type { Metadata } from "next";
 
@@ -31,6 +33,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
   const { q = "", page: pageValue } = await searchParams;
   const query = q.trim();
   const page = Number(pageValue) || 1;
+  const isSearch = Boolean(query);
 
   try {
     const { items, meta } = await listProducts({
@@ -39,39 +42,80 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
       limit: 24,
     });
 
+    const breadcrumbs = isSearch
+      ? [
+          { name: "Home", href: "/" },
+          { name: "All products", href: "/products" },
+          { name: `Search: ${query}` },
+        ]
+      : [
+          { name: "Home", href: "/" },
+          { name: "All products" },
+        ];
+
     return (
-      <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6">
-        <div className="rounded-md bg-white px-4 py-5 sm:px-6">
-          <h1 className="text-2xl font-bold text-navy">{query ? `Results for “${query}”` : "All products"}</h1>
-          <p className="mt-1 text-sm text-neutral-600">
-            {query
-              ? `${meta.total} matching ${meta.total === 1 ? "product" : "products"}`
-              : "Search title, brand, or model. Browse active products in the catalog."}
+      <div className="shop-wrap py-6 sm:py-10">
+        {!isSearch ? (
+          <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{
+              __html: jsonLd(
+                breadcrumbJsonLd([
+                  { name: "Home", path: "/" },
+                  { name: "All products", path: "/products" },
+                ]),
+              ),
+            }}
+          />
+        ) : null}
+        <Breadcrumb items={breadcrumbs} />
+        <header className="mt-6">
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-forest">
+            {isSearch ? "Search" : "Catalog"}
           </p>
-          <div className="mt-4 md:hidden">
-            <SearchBar defaultValue={query} />
+          <h1 className="font-display mt-2 text-2xl font-semibold tracking-tight text-ink sm:text-3xl">
+            {isSearch ? `Results for “${query}”` : "All products"}
+          </h1>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-ink-muted">
+            {isSearch
+              ? `${meta.total} matching ${meta.total === 1 ? "product" : "products"}. Search looks at title, brand, and model.`
+              : "Search title, brand, or model. Prices on cards are eligible current offers only."}
+          </p>
+          <div className="mt-5 max-w-2xl">
+            <SearchBar variant="hero" defaultValue={query} autoFocus={isSearch} inputId="catalog-search" />
           </div>
-        </div>
-        <div className="mt-4">
+          {isSearch ? (
+            <p className="mt-3 text-sm">
+              <Link href="/products" className="font-semibold text-forest underline">
+                Clear search
+              </Link>
+            </p>
+          ) : null}
+        </header>
+        <div className="mt-8">
           <ProductGrid
             products={items}
-            emptyTitle={query ? `No products match “${query}”.` : "No products yet."}
-            emptyDescription={query ? "Try another keyword, or browse categories from the home page." : "Add products in admin."}
+            emptyTitle={isSearch ? `No products match “${query}”.` : "No products yet."}
+            emptyDescription={
+              isSearch
+                ? "Try another keyword, or browse the kitchen catalog."
+                : "Add products in admin, or check back after import."
+            }
+            emptyAction={
+              isSearch ? (
+                <Link href="/products" className="text-sm font-semibold text-forest underline">
+                  Browse all products
+                </Link>
+              ) : null
+            }
           />
         </div>
-        <Pagination meta={meta} basePath={query ? `/products?q=${encodeURIComponent(query)}` : "/products"} />
-        {query ? (
-          <p className="mt-6 text-center text-sm">
-            <Link href="/products" className="font-medium text-navy underline">
-              Clear search
-            </Link>
-          </p>
-        ) : null}
+        <Pagination meta={meta} basePath={isSearch ? `/products?q=${encodeURIComponent(query)}` : "/products"} />
       </div>
     );
   } catch {
     return (
-      <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6">
+      <div className="shop-wrap py-10">
         <CatalogUnavailable />
       </div>
     );

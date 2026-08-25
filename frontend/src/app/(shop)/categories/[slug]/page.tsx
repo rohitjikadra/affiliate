@@ -1,14 +1,16 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { CatalogUnavailable } from "@/components/catalog/CatalogUnavailable";
 import { Pagination } from "@/components/catalog/Pagination";
 import { ProductGrid } from "@/components/product/ProductGrid";
 import { TrackPageView } from "@/components/analytics/TrackPageView";
+import { Breadcrumb } from "@/components/layout/Breadcrumb";
 import { getCategory, listProducts } from "@/lib/api";
-import { publicMetadata } from "@/lib/seo";
+import { publicMetadata, jsonLd } from "@/lib/seo";
+import { breadcrumbJsonLd } from "@/lib/json-ld";
 import { handleMoved } from "@/lib/redirects";
 import { ApiError } from "@/types/product";
+import Link from "next/link";
 
 type CategoryPageProps = {
   params: Promise<{ slug: string }>;
@@ -42,26 +44,36 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
       listProducts({ category: slug, page, limit: 24 }),
     ]);
 
+    const crumbs = [
+      { name: "Home", path: "/" },
+      { name: category.name, path: `/categories/${category.slug}` },
+    ];
+
     return (
-      <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6">
+      <div className="shop-wrap py-6 sm:py-10">
         <TrackPageView path={`/categories/${category.slug}`} entityType="category" entityId={category.id} />
-        <div className="rounded-md bg-white px-4 py-5 sm:px-6">
-          <p className="text-sm text-neutral-500">
-            <Link href="/" className="hover:text-navy">Home</Link>
-            <span className="px-2">/</span>
-            <span>{category.name}</span>
-          </p>
-          <h1 className="mt-2 text-2xl font-bold text-navy">{category.name}</h1>
-          {category.description ? <p className="mt-2 max-w-2xl text-sm text-neutral-600">{category.description}</p> : null}
-          <p className="mt-2 text-sm text-neutral-500">
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(breadcrumbJsonLd(crumbs)) }} />
+        <Breadcrumb items={[{ name: "Home", href: "/" }, { name: category.name }]} />
+        <header className="mt-6">
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-forest">Kitchen category</p>
+          <h1 className="font-display mt-2 text-2xl font-semibold tracking-tight text-ink sm:text-3xl">{category.name}</h1>
+          {category.description ? (
+            <p className="mt-3 max-w-2xl text-sm leading-7 text-ink-muted sm:text-base">{category.description}</p>
+          ) : null}
+          <p className="mt-3 text-sm text-ink-subtle">
             {listed.meta.total} {listed.meta.total === 1 ? "product" : "products"}
           </p>
-        </div>
-        <div className="mt-4">
+        </header>
+        <div className="mt-8">
           <ProductGrid
             products={listed.items}
             emptyTitle={`No products in ${category.name} yet.`}
             emptyDescription="Check another category, or browse the full catalog."
+            emptyAction={
+              <Link href="/products" className="text-sm font-semibold text-forest underline">
+                Browse all products
+              </Link>
+            }
           />
         </div>
         <Pagination meta={listed.meta} basePath={`/categories/${category.slug}`} />
@@ -73,7 +85,7 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
       notFound();
     }
     return (
-      <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6">
+      <div className="shop-wrap py-10">
         <CatalogUnavailable />
       </div>
     );

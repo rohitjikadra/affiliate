@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { SITE_NAME } from "@/lib/site";
-import { useState } from "react";
+import { Suspense, useState } from "react";
 
 const navItems = [
   { href: "/products", label: "Products" },
@@ -12,16 +12,85 @@ const navItems = [
   { href: "/categories/kitchen-appliances", label: "Kitchen" },
 ];
 
-type SiteHeaderProps = {
-  isAdmin: boolean;
-  defaultQuery?: string;
-};
+function HeaderSearchForm({
+  inputId,
+  className,
+  buttonClassName,
+}: {
+  inputId: string;
+  className: string;
+  buttonClassName: string;
+}) {
+  const query = useSearchParams().get("q") ?? "";
+
+  return (
+    <form action="/products" method="get" role="search" className={className}>
+      <label htmlFor={inputId} className="sr-only">
+        Search products
+      </label>
+      <input
+        id={inputId}
+        key={query}
+        type="search"
+        name="q"
+        defaultValue={query}
+        autoComplete="search"
+        enterKeyHint="search"
+        spellCheck={false}
+        placeholder="Search Prestige, Philips, mixer grinders"
+        className="h-10 w-full rounded-l-md border border-line bg-paper px-3 text-sm text-ink outline-none placeholder:text-ink-subtle focus:border-forest"
+      />
+      <button type="submit" className={buttonClassName}>
+        Search
+      </button>
+    </form>
+  );
+}
+
+function HeaderSearchFallback({
+  inputId,
+  className,
+  buttonClassName,
+}: {
+  inputId: string;
+  className: string;
+  buttonClassName: string;
+}) {
+  return (
+    <form action="/products" method="get" role="search" className={className}>
+      <label htmlFor={inputId} className="sr-only">
+        Search products
+      </label>
+      <input
+        id={inputId}
+        type="search"
+        name="q"
+        autoComplete="search"
+        enterKeyHint="search"
+        placeholder="Search Prestige, Philips, mixer grinders"
+        className="h-10 w-full rounded-l-md border border-line bg-paper px-3 text-sm text-ink outline-none placeholder:text-ink-subtle focus:border-forest"
+      />
+      <button type="submit" className={buttonClassName}>
+        Search
+      </button>
+    </form>
+  );
+}
 
 function navActive(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export function SiteHeader({ isAdmin, defaultQuery = "" }: SiteHeaderProps) {
+type SiteHeaderProps = {
+  isAdmin: boolean;
+};
+
+const desktopSearchClass = "hidden min-w-0 flex-1 md:flex";
+const mobileSearchClass = "flex pb-3 md:hidden";
+const desktopButtonClass = "h-10 rounded-r-md bg-forest px-4 text-sm font-semibold text-white hover:bg-forest-2";
+const mobileButtonClass = "h-10 rounded-r-md bg-forest px-3 text-sm font-semibold text-white hover:bg-forest-2";
+
+export function SiteHeader({ isAdmin }: SiteHeaderProps) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
 
@@ -33,25 +102,21 @@ export function SiteHeader({ isAdmin, defaultQuery = "" }: SiteHeaderProps) {
             {SITE_NAME}
           </Link>
 
-          <form action="/products" method="get" className="hidden min-w-0 flex-1 md:flex">
-            <label htmlFor="header-search" className="sr-only">
-              Search products
-            </label>
-            <input
-              id="header-search"
-              type="search"
-              name="q"
-              defaultValue={defaultQuery}
-              placeholder="Search Prestige, Philips, mixer grinders"
-              className="h-10 w-full rounded-l-md border border-line bg-paper px-3 text-sm text-ink outline-none placeholder:text-ink-subtle focus:border-forest"
+          <Suspense
+            fallback={
+              <HeaderSearchFallback
+                inputId="header-search"
+                className={desktopSearchClass}
+                buttonClassName={desktopButtonClass}
+              />
+            }
+          >
+            <HeaderSearchForm
+              inputId="header-search"
+              className={desktopSearchClass}
+              buttonClassName={desktopButtonClass}
             />
-            <button
-              type="submit"
-              className="h-10 rounded-r-md bg-forest px-4 text-sm font-semibold text-white hover:bg-forest-2"
-            >
-              Search
-            </button>
-          </form>
+          </Suspense>
 
           <button
             type="button"
@@ -69,25 +134,21 @@ export function SiteHeader({ isAdmin, defaultQuery = "" }: SiteHeaderProps) {
           </button>
         </div>
 
-        <form action="/products" method="get" className="flex pb-3 md:hidden">
-          <label htmlFor="header-search-mobile" className="sr-only">
-            Search products
-          </label>
-          <input
-            id="header-search-mobile"
-            type="search"
-            name="q"
-            defaultValue={defaultQuery}
-            placeholder="Search Prestige, Philips, mixer grinders"
-            className="h-10 w-full rounded-l-md border border-line bg-paper px-3 text-sm text-ink outline-none placeholder:text-ink-subtle focus:border-forest"
+        <Suspense
+          fallback={
+            <HeaderSearchFallback
+              inputId="header-search-mobile"
+              className={mobileSearchClass}
+              buttonClassName={mobileButtonClass}
+            />
+          }
+        >
+          <HeaderSearchForm
+            inputId="header-search-mobile"
+            className={mobileSearchClass}
+            buttonClassName={mobileButtonClass}
           />
-          <button
-            type="submit"
-            className="h-10 rounded-r-md bg-forest px-3 text-sm font-semibold text-white hover:bg-forest-2"
-          >
-            Search
-          </button>
-        </form>
+        </Suspense>
 
         <nav className="hidden border-t border-line md:block" aria-label="Primary">
           <div className="flex items-center gap-6 py-2.5 text-sm">

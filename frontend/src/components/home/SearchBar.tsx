@@ -3,6 +3,7 @@ type SearchBarProps = {
   action?: string;
   variant?: "default" | "hero";
   inputId?: string;
+  autoFocus?: boolean;
 };
 
 export function SearchBar({
@@ -10,11 +11,12 @@ export function SearchBar({
   action = "/products",
   variant = "default",
   inputId = "product-search",
+  autoFocus = false,
 }: SearchBarProps) {
   const hero = variant === "hero";
 
   return (
-    <form action={action} method="get" className={`flex w-full overflow-hidden rounded-md border border-line bg-surface ${hero ? "" : "max-w-xl"}`}>
+    <form action={action} method="get" role="search" className={`flex w-full overflow-hidden rounded-md border border-line bg-surface ${hero ? "" : "max-w-xl"}`}>
       <label htmlFor={inputId} className="sr-only">
         Search products
       </label>
@@ -23,6 +25,10 @@ export function SearchBar({
         type="search"
         name="q"
         defaultValue={defaultValue}
+        autoFocus={autoFocus}
+        autoComplete="search"
+        enterKeyHint="search"
+        spellCheck={false}
         placeholder="Search mixer grinders, Prestige, Philips"
         className={
           hero
