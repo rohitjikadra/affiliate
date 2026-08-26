@@ -1,6 +1,9 @@
 import "dotenv/config";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../src/generated/prisma/client.ts";
+import { assertNotProductionSeed } from "../src/lib/production-guard.ts";
+
+assertNotProductionSeed();
 
 const adapter = new PrismaPg({
   connectionString: process.env.DATABASE_URL,

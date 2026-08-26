@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { serializeJsonLd } from "@/lib/json-ld-serialize";
 import { absoluteUrl, pageTitle, SITE_NAME, SITE_TAGLINE } from "@/lib/site";
 
 export function publicMetadata(input: {
@@ -34,5 +35,5 @@ export function publicMetadata(input: {
 }
 
 export function jsonLd(data: Record<string, unknown>): string {
-  return JSON.stringify(data);
+  return serializeJsonLd(data);
 }

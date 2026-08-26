@@ -8,7 +8,13 @@ import { selectBestOffer } from "../pricing/best-price.js";
 import type { AlertType, PriceEventType } from "../../generated/prisma/client.js";
 
 function siteLink(path: string): string {
-  return `${(env.siteUrl ?? "http://localhost:3000").replace(/\/$/, "")}${path}`;
+  if (!env.siteUrl) {
+    if (env.isProduction) {
+      throw new Error("SITE_URL is required in production");
+    }
+    return `http://localhost:3000${path}`;
+  }
+  return `${env.siteUrl.replace(/\/$/, "")}${path}`;
 }
 
 const PRIVACY =

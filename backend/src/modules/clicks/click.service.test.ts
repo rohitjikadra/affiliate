@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { findUnique, findFirstProduct, createClick } = vi.hoisted(() => ({
+const { findUnique, findFirstProduct, findManyMerchants, createClick } = vi.hoisted(() => ({
   findUnique: vi.fn(),
   findFirstProduct: vi.fn(),
+  findManyMerchants: vi.fn(),
   createClick: vi.fn(),
 }));
 
@@ -10,11 +11,23 @@ vi.mock("../../config/prisma.js", () => ({
   prisma: {
     offer: { findUnique },
     product: { findFirst: findFirstProduct },
+    merchant: { findMany: findManyMerchants },
     affiliateClick: { create: createClick },
   },
 }));
 
 import { recordOfferClick, recordProductClick } from "./click.service.js";
+
+function amazonMerchant(partial: Record<string, unknown> = {}) {
+  return {
+    hostAllowlist: ["amazon.in", "www.amazon.in"],
+    defaultTag: null,
+    network: "AMAZON",
+    integrationKey: "AMAZON_IN",
+    slug: "amazon",
+    ...partial,
+  };
+}
 
 function offerRow(partial: Record<string, unknown> = {}) {
   return {
@@ -40,6 +53,7 @@ describe("offer click redirect", () => {
   beforeEach(() => {
     findUnique.mockReset();
     findFirstProduct.mockReset();
+    findManyMerchants.mockReset();
     createClick.mockReset().mockResolvedValue({});
   });
 
@@ -104,6 +118,7 @@ describe("product click fallback", () => {
   beforeEach(() => {
     findUnique.mockReset();
     findFirstProduct.mockReset();
+    findManyMerchants.mockReset().mockResolvedValue([amazonMerchant()]);
     createClick.mockReset().mockResolvedValue({});
   });
 
@@ -152,7 +167,7 @@ describe("product click fallback", () => {
     );
   });
 
-  it("keeps product-level /go on Product.affiliateUrl when there are no offers", async () => {
+  it("allows an existing valid Amazon legacy URL when there are no offers", async () => {
     findFirstProduct.mockResolvedValue({
       id: "product-1",
       isActive: true,
@@ -168,5 +183,57 @@ describe("product click fallback", () => {
         data: expect.objectContaining({ source: "AMAZON", productId: "product-1" }),
       }),
     );
+  });
+
+  it("allows a legacy URL that matches an active merchant host allowlist", async () => {
+    findManyMerchants.mockResolvedValue([
+      amazonMerchant({ hostAllowlist: ["example.com"], network: "DIRECT", integrationKey: "SHOP", slug: "shop" }),
+    ]);
+    findFirstProduct.mockResolvedValue({
+      id: "product-1",
+      isActive: true,
+      status: "PUBLISHED",
+      source: "MANUAL",
+      affiliateUrl: "https://example.com/p/SKU-99",
+      offers: [],
+    });
+    const result = await recordProductClick("demo", {});
+    expect(result.url).toBe("https://example.com/p/SKU-99");
+    expect(createClick).toHaveBeenCalled();
+  });
+
+  it("rejects a legacy URL whose host is not on any active merchant allowlist", async () => {
+    findFirstProduct.mockResolvedValue({
+      id: "product-1",
+      isActive: true,
+      status: "PUBLISHED",
+      source: "AMAZON",
+      affiliateUrl: "https://evil.example/phish",
+      offers: [],
+    });
+    await expect(recordProductClick("demo", {})).rejects.toMatchObject({
+      statusCode: 409,
+      message: "This offer is currently unavailable.",
+    });
+    expect(createClick).not.toHaveBeenCalled();
+  });
+
+  it("rejects localhost and private-IP legacy destinations", async () => {
+    findManyMerchants.mockResolvedValue([amazonMerchant({ hostAllowlist: ["localhost", "127.0.0.1"] })]);
+    for (const affiliateUrl of ["https://127.0.0.1/latest", "http://localhost:3000/admin"]) {
+      findFirstProduct.mockResolvedValue({
+        id: "product-1",
+        isActive: true,
+        status: "PUBLISHED",
+        source: "MANUAL",
+        affiliateUrl,
+        offers: [],
+      });
+      await expect(recordProductClick("demo", {})).rejects.toMatchObject({
+        statusCode: 409,
+        message: "This offer is currently unavailable.",
+      });
+    }
+    expect(createClick).not.toHaveBeenCalled();
   });
 });

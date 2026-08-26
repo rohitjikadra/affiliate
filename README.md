@@ -15,7 +15,8 @@ Worker   →  same Postgres (SKIP LOCKED jobs)
 | --- | --- | --- |
 | Frontend | http://localhost:3000 | `npm run dev`, `npm run build`, `npm run start`, `npm run lint`, `npm run typecheck` |
 | Backend | http://localhost:4000 | `npm run dev`, `npm run build`, `npm run start`, `npm run typecheck`, `npm test` |
-| Worker | (second Node process) | `npm run worker` from `backend/` |
+| Worker (dev) | (second Node process) | `npm run worker` from `backend/` (`tsx src/worker.ts`) |
+| Worker (production) | (second Node process) | `npm run start:worker` after `npm run build` (`node dist/worker.js`) |
 
 ## Prerequisites
 
@@ -37,7 +38,7 @@ copy .env.example .env   # Windows
 # cp .env.example .env  # macOS / Linux
 ```
 
-Set `DATABASE_URL`. In production, `ADMIN_PASSWORD` must be ≥16 characters and `SESSION_SECRET` ≥32 characters. Defaults such as `changeme` are rejected.
+Set `DATABASE_URL`. In production, `ADMIN_PASSWORD` must be ≥16 characters and `SESSION_SECRET` ≥32 characters. Defaults such as `changeme` are rejected. `npm run prisma:seed` **refuses to run** when `NODE_ENV=production` (it deletes catalog data).
 
 ```bash
 npm install
@@ -87,16 +88,16 @@ Backend (`backend/.env.example`):
 - `ADMIN_PASSWORD` — required; strong value required in production
 - `SESSION_SECRET` — HMAC key; ≥32 characters in production
 - `AMAZON_ASSOCIATE_TAG` — optional default Amazon tag
-- `TRUST_PROXY` — set to `1` behind a reverse proxy
-- `SITE_URL` — public site URL (used by the worker to call on-demand ISR)
-- `REVALIDATE_SECRET` — shared with the frontend; worker sends `Authorization: Bearer` to `POST /admin/revalidate`
+- `TRUST_PROXY` — local `0`. Production **behind nginx/Caddy: `1`** (one reverse-proxy hop). Rate limits use Express `req.ip`. Do not blindly raise this; only trust hops that overwrite `X-Forwarded-For`.
+- `SITE_URL` — public site URL (worker ISR + alert links). **Required https (not localhost) in production.**
+- `REVALIDATE_SECRET` — shared with the frontend; worker sends `Authorization: Bearer` to `POST /admin/revalidate`. **Required, ≥32 characters in production.**
 - `PRICE_HISTORY_PUBLIC` — keep `false` until counsel confirms public Amazon-derived charts
 - `AMAZON_CREATORS_CREDENTIAL_ID` / `AMAZON_CREATORS_CREDENTIAL_SECRET` — optional; V1 works with tagged `/go` links if unset
 
 Frontend (`frontend/.env.example`):
 
 - `API_ORIGIN` — Express origin used by Next rewrites and server fetches
-- `NEXT_PUBLIC_SITE_URL` — canonical site URL for metadata/sitemap
+- `NEXT_PUBLIC_SITE_URL` — canonical site URL for metadata/sitemap. **Must be public https in production** (`next build` / `next start` reject localhost).
 - `NEXT_PUBLIC_CONTACT_EMAIL` — contact page mailto (omit until you have a real inbox)
 - `REVALIDATE_SECRET` — same value as the backend; required for worker ISR refresh
 
@@ -120,11 +121,44 @@ CI starts Postgres 16, runs `prisma migrate deploy`, then unit tests plus a heal
 
 ## Production notes
 
-- Serve Next and the API on one hostname (Vercel rewrites or Caddy/nginx `/api` proxy).
-- Run `npm run worker` as a second process (or supervisor). Do not fetch Amazon on page requests.
-- Set the same `REVALIDATE_SECRET` on Next and the API so successful price fetches can purge ISR pages.
+Serve Next and the API on **one hostname** (Caddy/nginx `/api` and `/go` proxy, or equivalent rewrites). The `ah_session` cookie is `HttpOnly`, `SameSite=lax`, and `Secure` when `NODE_ENV=production`. Split API/frontend hosts will break admin login.
+
+```bash
+# After npm run build in each app:
+cd backend && NODE_ENV=production npm start          # node dist/index.js
+cd backend && NODE_ENV=production npm run start:worker  # node dist/worker.js
+cd frontend && npm run start
+```
+
+Do not use `npm run worker` (`tsx`) in production — `tsx` is a devDependency. `npm run prisma:seed` is blocked in production.
+
+Production startup **fails** if `ADMIN_PASSWORD` / `SESSION_SECRET` / `SITE_URL` / `CORS_ORIGIN` / `REVALIDATE_SECRET` are missing, localhost, http, or weak. Amazon Creators credentials stay optional. Price-alert mail warns (does not fail) if both `ALERT_FROM_EMAIL` and `RESEND_API_KEY` are empty; setting only one of them fails.
+
+- Set `TRUST_PROXY=1` behind one reverse proxy so login/`/go`/alert rate limits see the client IP.
 - Run `prisma migrate deploy` on release.
 - Rotate `SESSION_SECRET` to invalidate all admin sessions.
-- Back up managed Postgres with the host's daily snapshots.
 - Do not index `/admin`.
 - Keep `PRICE_HISTORY_PUBLIC=false` until legal review.
+
+### Backups (hosting/database layer)
+
+**Backup must be configured at the hosting/database layer.** This repository does not run PostgreSQL backups.
+
+Before launch:
+
+1. Enable **daily** backups on the Postgres host (managed snapshot, or `pg_dump` from a scheduler that reads `DATABASE_URL` from the environment — never hardcode credentials).
+2. Keep at least **7 days** of retention (30 days if the catalog is hard to recreate).
+3. Practice restore **once** on a throwaway database before going live.
+
+Restore outline (provider tools differ; this is the generic dump path):
+
+```bash
+# Backup (run where psql/pg_dump can reach production Postgres)
+pg_dump "$DATABASE_URL" --format=custom --file=affiliate-$(date -u +%Y%m%d).dump
+
+# Restore onto an empty database (destroys target data)
+pg_restore --clean --if-exists --dbname="$DATABASE_URL" affiliate-YYYYMMDD.dump
+npx prisma migrate deploy
+```
+
+Confirm after restore: `GET /api/health` returns 200, admin login works, a product page loads. If you have never restored a copy, treat backups as untested.

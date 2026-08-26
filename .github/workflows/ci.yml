@@ -40,12 +40,18 @@ jobs:
       - run: npm run typecheck
       - run: npx prisma migrate deploy
       - run: npm test
+      - run: npm run build
+      - run: test -f dist/worker.js
 
   frontend:
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: frontend
+    env:
+      NEXT_PUBLIC_SITE_URL: https://example.com
+      API_ORIGIN: http://127.0.0.1:4000
+      REVALIDATE_SECRET: ci-revalidate-secret-which-is-long-enough
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -55,3 +61,5 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
       - run: npm run typecheck
+      - run: npm test
+      - run: npm run build

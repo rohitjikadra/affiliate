@@ -101,17 +101,37 @@ export async function recordProductClick(slug: string, context: ClickContext) {
     return recordOfferClick(checkout.id, context);
   }
 
-  // Legacy POST /products/:slug/go: keep Product.affiliateUrl when the product has no offers.
+  // Legacy POST /products/:slug/go: Product.affiliateUrl only when there are no offers.
   const destination = isSafeHttpUrl(product.affiliateUrl) ? product.affiliateUrl : null;
   if (!destination) {
     throw new AppError(409, "UNAVAILABLE", "This offer is currently unavailable.");
   }
 
+  const merchants = await prisma.merchant.findMany({
+    where: { isActive: true },
+    select: {
+      hostAllowlist: true,
+      defaultTag: true,
+      integrationKey: true,
+      network: true,
+      slug: true,
+    },
+  });
+  const merchant = merchants.find((row) => isAllowedMerchantUrl(destination, row.hostAllowlist ?? []));
+  if (!merchant) {
+    throw new AppError(409, "UNAVAILABLE", "This offer is currently unavailable.");
+  }
+
+  const resolved = resolveAffiliateUrl(destination, merchant);
+  if (!isAllowedMerchantUrl(resolved, merchant.hostAllowlist ?? [])) {
+    throw new AppError(409, "UNAVAILABLE", "This offer is currently unavailable.");
+  }
+
   await writeClick({
     productId: product.id,
-    source: product.source,
+    source: clickSourceFromMerchant(merchant.network),
     context,
   });
 
-  return { url: destination };
+  return { url: resolved };
 }
